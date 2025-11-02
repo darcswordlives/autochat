@@ -3,7 +3,7 @@ import { extension_settings, getContext, loadExtensionSettings } from "../../../
 import { saveSettingsDebounced, eventSource } from "../../../../script.js";
 
 // Extension name MUST match folder name
-const extensionName = "autochat"; // CHANGED from "random-timer"
+const extensionName = "autochat";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 
 const defaultSettings = {
@@ -101,7 +101,9 @@ jQuery(async () => {
    
     try {
         const settingsHtml = await $.get(`${extensionFolderPath}/example.html`);
-        $("#extensions_settings2").append(settingsHtml);
+       
+        // CHANGED: Append to the left panel (#extensions_settings) instead of the right (#extensions_settings2)
+        $("#extensions_settings").append(settingsHtml);
        
         $("#autochat-enabled").on("input", onCheckboxChange);
         $("#autochat-min-seconds").on("input", onMinSecondsChange);
@@ -110,4 +112,8 @@ jQuery(async () => {
        
         loadSettings();
        
-        console.log(`
+        console.log(`[${extensionName}] ✅ Loaded successfully`);
+    } catch (error) {
+        console.error(`[${extensionName}] ❌ Failed to load:`, error);
+    }
+});
