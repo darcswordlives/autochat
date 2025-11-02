@@ -23,14 +23,26 @@ let currentCountdown = 0;
 let lastCountdownDuration = 0;
 let messagesSent = 0;
 let isFirstRun = true;
-// NEW: Variable to track the timestamp of the last sent message
-let lastSentTimestamp = 0;
 
 // Function to load settings into the UI
 async function loadSettings() {
     extension_settings[extensionName] = extension_settings[extensionName] || {};
     if (Object.keys(extension_settings[extensionName]).length === 0) {
         Object.assign(extension_settings[extensionName], defaultSettings);
+    }
+
+    // If throttle safety is enabled, ensure minTime is at least 120
+    if (extension_settings[extensionName].throttleSafety && extension_settings[extensionName].minTime < 120) {
+        console.warn(`[${extensionName}] Throttle safety is enabled but minTime is less than 120. Setting minTime to 120.`);
+        extension_settings[extensionName].minTime = 120;
+        saveSettingsDebounced();
+    }
+
+    // NEW: If throttle safety is enabled, ensure startupTime is at least 120
+    if (extension_settings[extensionName].throttleSafety && extension_settings[extensionName].startupTime < 120) {
+        console.warn(`[${extensionName}] Throttle safety is enabled but startupTime is less than 120. Setting startupTime to 120.`);
+        extension_settings[extensionName].startupTime = 120;
+        saveSettingsDebounced();
     }
 
     if (extension_settings[extensionName].minTime > extension_settings[extensionName].maxTime) {
@@ -79,6 +91,14 @@ function onCheckboxChange(event) {
 function onMinTimeChange(event) {
     let newMinTime = Number($(event.target).val());
     let currentMaxTime = extension_settings[extensionName].maxTime;
+    const isThrottleEnabled = extension_settings[extensionName].throttleSafety;
+
+    // If throttle is enabled, enforce minimum of 120 seconds
+    if (isThrottleEnabled && newMinTime < 120) {
+        console.warn(`[${extensionName}] Throttle safety is enabled. Minimum time cannot be less than 120 seconds. Setting to 120.`);
+        newMinTime = 120;
+        $("#autochat_min_time").val(newMinTime);
+    }
 
     if (newMinTime > currentMaxTime) {
         console.warn(`[${extensionName}] Minimum time cannot be greater than maximum time. Adjusting max time.`);
@@ -118,10 +138,11 @@ function onMaxTimeChange(event) {
     console.log(`[${extensionName}] Times saved - Min: ${currentMinTime}, Max: ${newMaxTime}`);
 }
 
-// Event handler for startup time input
+// UPDATED: Event handler for startup time input
 function onStartupTimeChange(event) {
     let inputVal = $(event.target).val();
     let newStartupTime;
+    const isThrottleEnabled = extension_settings[extensionName].throttleSafety;
 
     if (inputVal === "" || isNaN(Number(inputVal))) {
         console.warn(`[${extensionName}] Startup time is blank or invalid. Defaulting to 120.`);
@@ -129,6 +150,13 @@ function onStartupTimeChange(event) {
         $("#autochat_startup_time").val(newStartupTime);
     } else {
         newStartupTime = Number(inputVal);
+    }
+
+    // NEW: If throttle is enabled, enforce minimum of 120 seconds
+    if (isThrottleEnabled && newStartupTime < 120) {
+        console.warn(`[${extensionName}] Throttle safety is enabled. Startup time cannot be less than 120 seconds. Setting to 120.`);
+        newStartupTime = 120;
+        $("#autochat_startup_time").val(newStartupTime);
     }
 
     extension_settings[extensionName].startupTime = newStartupTime;
@@ -161,11 +189,43 @@ function onRepeatCountChange(event) {
     console.log(`[${extensionName}] Repeat count saved:`, newRepeatCount === null ? "Infinite" : newRepeatCount);
 }
 
-// Event handler for throttle safety checkbox
+// UPDATED: Event handler for throttle safety checkbox
 function onThrottleSafetyChange(event) {
     const value = Boolean($(event.target).prop("checked"));
     extension_settings[extensionName].throttleSafety = value;
-    saveSettingsDebounced();
+    
+    if (value) {
+        console.log(`[${extensionName}] Throttle safety enabled.`);
+        let needsSave = false;
+
+        // Check and adjust minTime
+        if (extension_settings[extensionName].minTime < 120) {
+            console.warn(`[${extensionName}] Setting minimum time to 120 seconds.`);
+            extension_settings[extensionName].minTime = 120;
+            $("#autochat_min_time").val(120);
+            needsSave = true;
+        }
+
+        // NEW: Check and adjust startupTime
+        if (extension_settings[extensionName].startupTime < 120) {
+            console.warn(`[${extensionName}] Setting startup time to 120 seconds.`);
+            extension_settings[extensionName].startupTime = 120;
+            $("#autochat_startup_time").val(120);
+            needsSave = true;
+        }
+        
+        // Also ensure maxTime is not less than the new minTime
+        if (extension_settings[extensionName].maxTime < 120) {
+            extension_settings[extensionName].maxTime = 120;
+            $("#autochat_max_time").val(120);
+            needsSave = true;
+        }
+
+        if (needsSave) {
+            saveSettingsDebounced();
+        }
+    }
+    
     console.log(`[${extensionName}] Throttle safety setting saved:`, value);
 }
 
@@ -176,8 +236,6 @@ function sendMessage(message) {
         chatInput.val(message);
         $("#send_but").trigger('click');
         console.log(`[${extensionName}] Message sent to chat:`, message);
-        // NEW: Update the timestamp after a successful send
-        lastSentTimestamp = Date.now();
     } catch (error) {
         console.error(`[${extensionName}] Failed to send message:`, error);
     }
@@ -211,20 +269,6 @@ function startTimer() {
         if (currentCountdown <= 0) {
             console.log(`[${extensionName}] Timer finished!`);
             
-            // NEW: Throttle safety check
-            const isThrottleEnabled = extension_settings[extensionName].throttleSafety;
-            const timeSinceLastMessage = Date.now() - lastSentTimestamp;
-            const throttleLimit = 120 * 1000; // 2 minutes in milliseconds
-
-            if (isThrottleEnabled && timeSinceLastMessage < throttleLimit) {
-                const timeToWait = Math.ceil((throttleLimit - timeSinceLastMessage) / 1000);
-                console.warn(`[${extensionName}] Throttle safety active. Last message sent ${Math.round(timeSinceLastMessage / 1000)}s ago. Skipping message and restarting timer. Next attempt in ~${timeToWait}s.`);
-                // Do not send the message, just restart the timer
-                startTimer();
-                return; // Exit the interval callback
-            }
-
-            // If throttle is off or enough time has passed, send the message
             const template = extension_settings[extensionName].messageTemplate;
             const processedMessage = template.replace(/{seconds}/g, lastCountdownDuration);
             
@@ -257,8 +301,6 @@ function stopTimer(isManualStop = false) {
         messagesSent = 0;
         if (isManualStop) {
             isFirstRun = true;
-            // NEW: Reset the last sent timestamp on manual stop
-            lastSentTimestamp = 0;
         }
     }
 }
