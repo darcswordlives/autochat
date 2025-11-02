@@ -1,5 +1,5 @@
 {
-  "display_name": "Autochat",
+  "display_name": "AutoChat",
   "loading_order": 100,
   "requires": [],
   "optional": [],
@@ -7,5 +7,5 @@
   "css": "style.css",
   "author": "Your Name",
   "version": "1.0.0",
-  "homePage": "https://github.com/darcswordlives/repo"
+  "homePage": "https://github.com/darcswordlives/autochat"
 }
