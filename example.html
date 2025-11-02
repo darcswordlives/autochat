@@ -12,6 +12,12 @@
             <p><small>Toggle this and refresh - it should remember your choice.</small></p>
             <hr>
             <div class="autochat-time-settings">
+                <label for="autochat_startup_time">First Run Timer (seconds):</label>
+                <!-- UPDATED: Default value is now 120 -->
+                <input id="autochat_startup_time" type="number" min="1" max="3600" value="120" />
+                <small>This timer is used only for the first run after SillyTavern starts up.</small>
+            </div>
+            <div class="autochat-time-settings">
                 <label for="autochat_min_time">Minimum Time (seconds):</label>
                 <input id="autochat_min_time" type="number" min="1" max="3600" value="5" />
             </div>
@@ -23,7 +29,6 @@
                 <label for="autochat_repeat_count">Number of Repeats:</label>
                 <input id="autochat_repeat_count" type="number" min="1" placeholder="Infinite if blank" />
             </div>
-            <!-- NEW: Throttle Safety Checkbox -->
             <div>
                 <input id="autochat_throttle_safety" type="checkbox" />
                 <label for="autochat_throttle_safety">Enable Throttle Safety (1 message / 2 min)</label>
