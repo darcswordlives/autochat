@@ -19,7 +19,6 @@
                 <label for="autochat_max_time">Maximum Time (seconds):</label>
                 <input id="autochat_max_time" type="number" min="1" max="3600" value="10" placeholder="3600 if blank" />
             </div>
-            <!-- NEW: Repeat Count Field -->
             <div class="autochat-time-settings">
                 <label for="autochat_repeat_count">Number of Repeats:</label>
                 <input id="autochat_repeat_count" type="number" min="1" placeholder="Infinite if blank" />
@@ -33,10 +32,7 @@
                 <textarea id="autochat_message_template" rows="4" placeholder="Enter the message template here. Use {seconds} to insert the countdown duration."></textarea>
                 <small>Use <code>{seconds}</code> to insert the number of seconds that just elapsed.</small>
             </div>
-            <hr>
-            <div>
-                <input id="autochat_test_button" class="menu_button" type="submit" value="Test Button" />
-            </div>
+            <!-- REMOVED: Test Button -->
         </div>
     </div>
 </div>
