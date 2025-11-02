@@ -12,7 +12,9 @@ const defaultSettings = {
     minTime: 5,
     maxTime: 10,
     messageTemplate: "It has been {seconds} seconds since the last message. Time for another one!\n\nWhat are your thoughts on this?",
-    repeatCount: null
+    repeatCount: null,
+    // NEW: Default state for throttle safety (unchecked)
+    throttleSafety: false
 };
 
 // Timer variables
@@ -46,6 +48,8 @@ async function loadSettings() {
     $("#autochat_message_template").val(extension_settings[extensionName].messageTemplate);
     const repeatCount = extension_settings[extensionName].repeatCount;
     $("#autochat_repeat_count").val(repeatCount === null ? "" : repeatCount);
+    // NEW: Load throttle safety setting
+    $("#autochat_throttle_safety").prop("checked", extension_settings[extensionName].throttleSafety);
 }
 
 // Event handler for the checkbox
@@ -130,6 +134,14 @@ function onRepeatCountChange(event) {
     console.log(`[${extensionName}] Repeat count saved:`, newRepeatCount === null ? "Infinite" : newRepeatCount);
 }
 
+// NEW: Event handler for throttle safety checkbox
+function onThrottleSafetyChange(event) {
+    const value = Boolean($(event.target).prop("checked"));
+    extension_settings[extensionName].throttleSafety = value;
+    saveSettingsDebounced();
+    console.log(`[${extensionName}] Throttle safety setting saved:`, value);
+}
+
 // Simplified function to send a message to the chat
 function sendMessage(message) {
     try {
@@ -208,7 +220,8 @@ jQuery(async () => {
         $("#autochat_max_time").on("input", onMaxTimeChange);
         $("#autochat_message_template").on("input", onMessageTemplateChange);
         $("#autochat_repeat_count").on("input", onRepeatCountChange);
-        // REMOVED: Test button event binding
+        // NEW: Bind throttle safety event
+        $("#autochat_throttle_safety").on("input", onThrottleSafetyChange);
        
         loadSettings();
 
