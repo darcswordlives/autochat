@@ -130,25 +130,19 @@ function onRepeatCountChange(event) {
     console.log(`[${extensionName}] Repeat count saved:`, newRepeatCount === null ? "Infinite" : newRepeatCount);
 }
 
-// FIXED: Simplified function to send a message to the chat
+// Simplified function to send a message to the chat
 function sendMessage(message) {
     try {
-        // Get the chat input field
         const chatInput = $("#send_textarea");
-        
-        // Set the message in the input field
         chatInput.val(message);
-        
-        // Trigger a click on the send button
         $("#send_but").trigger('click');
-        
         console.log(`[${extensionName}] Message sent to chat:`, message);
     } catch (error) {
         console.error(`[${extensionName}] Failed to send message:`, error);
     }
 }
 
-// UPDATED: Function to start the timer
+// Function to start the timer
 function startTimer() {
     stopTimer();
 
@@ -168,17 +162,13 @@ function startTimer() {
         if (currentCountdown <= 0) {
             console.log(`[${extensionName}] Timer finished!`);
             
-            // Process the message template
             const template = extension_settings[extensionName].messageTemplate;
             const processedMessage = template.replace(/{seconds}/g, lastCountdownDuration);
             
-            // Send the message to the chat
             sendMessage(processedMessage);
             
-            // Increment the message counter
             messagesSent++;
             
-            // Check if we've reached the repeat limit (if set)
             const repeatCount = extension_settings[extensionName].repeatCount;
             if (repeatCount !== null && messagesSent >= repeatCount) {
                 console.log(`[${extensionName}] Repeat limit reached. Stopping timer.`);
@@ -188,14 +178,13 @@ function startTimer() {
                 extension_settings[extensionName].enabled = false;
                 saveSettingsDebounced();
             } else {
-                // Restart the timer
                 startTimer();
             }
         }
     }, 1000);
 }
 
-// UPDATED: Function to stop the timer
+// Function to stop the timer
 function stopTimer() {
     if (timerInterval) {
         clearInterval(timerInterval);
@@ -204,20 +193,6 @@ function stopTimer() {
         $("#autochat_timer_display").text("Timer: Stopped");
         messagesSent = 0;
     }
-}
-
-// Event handler for the test button
-function onButtonClick() {
-    const isEnabled = extension_settings[extensionName].enabled;
-    const minTime = extension_settings[extensionName].minTime;
-    const maxTime = extension_settings[extensionName].maxTime;
-    const template = extension_settings[extensionName].messageTemplate;
-    const repeatCount = extension_settings[extensionName].repeatCount;
-    toastr.info(
-        `AutoChat is ${isEnabled ? "enabled" : "disabled"}\nMin time: ${minTime}s | Max time: ${maxTime}s\nRepeats: ${repeatCount === null ? "Infinite" : repeatCount}`,
-        "AutoChat Status"
-    );
-    console.log(`[${extensionName}] Test button clicked.`);
 }
 
 // Extension initialization
@@ -233,7 +208,7 @@ jQuery(async () => {
         $("#autochat_max_time").on("input", onMaxTimeChange);
         $("#autochat_message_template").on("input", onMessageTemplateChange);
         $("#autochat_repeat_count").on("input", onRepeatCountChange);
-        $("#autochat_test_button").on("click", onButtonClick);
+        // REMOVED: Test button event binding
        
         loadSettings();
 
