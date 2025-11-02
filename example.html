@@ -11,6 +11,11 @@
             </div>
             <hr>
             <div class="margin-top-10">
+                <label for="autochat-repeats">Number of Repeats:</label>
+                <input id="autochat-repeats" type="number" min="0" class="text_pole" style="width: 80px;" />
+                <small>(0 = infinite)</small>
+            </div>
+            <div class="margin-top-10">
                 <label for="autochat-min-seconds">Minimum Seconds:</label>
                 <input id="autochat-min-seconds" type="number" min="1" class="text_pole" />
             </div>
@@ -18,10 +23,10 @@
                 <label for="autochat-max-seconds">Maximum Seconds:</label>
                 <input id="autochat-max-seconds" type="number" min="1" class="text_pole" />
             </div>
-            <!-- UPDATED: Placeholder text to explain the new feature -->
+            <!-- UPDATED: Label and input type -->
             <div class="margin-top-10">
-                <label for="autochat-message">End Message:</label>
-                <input id="autochat-message" type="text" class="text_pole" placeholder="Use {seconds} for the random time" />
+                <label for="autochat-message">{{User}} generated message:</label>
+                <textarea id="autochat-message" class="text_pole" rows="4" placeholder="Use {seconds} for the random time"></textarea>
             </div>
             <p><small>Checking the box will start a random countdown with the settings above.</small></p>
         </div>
