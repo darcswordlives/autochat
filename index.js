@@ -13,9 +13,8 @@ const defaultSettings = {
     minSeconds: 5,
     maxSeconds: 3600,
     message: "{{user}} has not responded in the last {seconds} seconds.",
-    // NEW: Added char message and sender choice
     charMessage: "{{char}} is getting impatient.",
-    senderChoice: "user", // 'user' or 'char'
+    senderChoice: "user",
     repeats: "",
     throttleProtection: true,
 };
@@ -38,8 +37,6 @@ async function loadSettings() {
     $("#autochat-message").val(extension_settings[extensionName].message);
     $("#autochat-repeats").val(extension_settings[extensionName].repeats);
     $("#autochat-throttle-protection").prop("checked", extension_settings[extensionName].throttleProtection);
-    
-    // NEW: Load char message and sender choice
     $("#autochat-char-message").val(extension_settings[extensionName].charMessage);
     $(`input[name="autochat-sender-choice"][value="${extension_settings[extensionName].senderChoice}"]`).prop("checked", true);
 
@@ -92,9 +89,7 @@ function startInitialTimer() {
     toastr.info(`Autochat enabled. Starting initial timer for ${maxSec} seconds.`);
 
     autochatTimerId = setTimeout(() => {
-        const messageTemplate = extension_settings[extensionName].message;
-        const finalMessage = messageTemplate.replace('{seconds}', maxSec);
-        handleTimerEnd(finalMessage);
+        handleTimerEnd(maxSec);
     }, maxSec * 1000);
 }
 
@@ -118,38 +113,49 @@ function startAutochatTimer() {
     toastr.info(`Timer started for ${randomSeconds} seconds.`);
 
     autochatTimerId = setTimeout(() => {
-        // NOTE: The logic to choose the correct message template will be in the next step
-        const messageTemplate = extension_settings[extensionName].message;
-        const finalMessage = messageTemplate.replace('{seconds}', randomSeconds);
-        handleTimerEnd(finalMessage);
+        handleTimerEnd(randomSeconds);
     }, randomSeconds * 1000);
 }
 
-function handleTimerEnd(finalMessage) {
+// QUALITY CHECK: This function now correctly selects the message template based on the user's choice.
+function handleTimerEnd(seconds) {
     const now = Date.now();
     const throttleEnabled = extension_settings[extensionName].throttleProtection;
-    const throttleTime = 2 * 60 * 1000; // 2 minutes in ms
+    const throttleTime = 2 * 60 * 1000;
 
     if (throttleEnabled && (now - lastSentTime < throttleTime)) {
         console.log(`[${extensionName}] Message throttled. Last message was sent less than 2 minutes ago.`);
         toastr.warning("Autochat message was throttled to prevent spam.");
-    } else if (finalMessage) {
-        console.log(`[${extensionName}] Timer ended! Sending message via prompt:`, finalMessage);
-        toastr.success("Message sent!");
-
-        const $sendTextarea = $("#send_textarea");
-        const $sendButton = $("#send_but";
-
-        if ($sendTextarea.length > 0 && $sendButton.length > 0) {
-            $sendTextarea.val(finalMessage);
-            $sendTextarea.trigger('input');
-            $sendButton.trigger('click');
-        } else {
-            console.error(`[${extensionName}] Could not find send textarea or button.`);
-        }
-        lastSentTime = now;
     } else {
-        console.warn(`[${extensionName}] Timer ended, but the message was empty.`);
+        const senderChoice = extension_settings[extensionName].senderChoice;
+        let messageTemplate = "";
+
+        if (senderChoice === "char") {
+            messageTemplate = extension_settings[extensionName].charMessage;
+        } else {
+            messageTemplate = extension_settings[extensionName].message;
+        }
+
+        const finalMessage = messageTemplate.replace('{seconds}', seconds);
+
+        if (finalMessage) {
+            console.log(`[${extensionName}] Timer ended! Sending message via prompt as [${senderChoice}]:`, finalMessage);
+            toastr.success(`Message sent as ${senderChoice}!`);
+
+            const $sendTextarea = $("#send_textarea");
+            const $sendButton = $("#send_but";
+
+            if ($sendTextarea.length > 0 && $sendButton.length > 0) {
+                $sendTextarea.val(finalMessage);
+                $sendTextarea.trigger('input');
+                $sendButton.trigger('click');
+            } else {
+                console.error(`[${extensionName}] Could not find send textarea or button.`);
+            }
+            lastSentTime = now;
+        } else {
+            console.warn(`[${extensionName}] Timer ended, but the message was empty.`);
+        }
     }
 
     currentRepeatCount++;
@@ -177,7 +183,6 @@ function onMinSecondsChange(event) {
 
     if (!isNaN(newMin) && newMin > 0) {
         extension_settings[extensionName].minSeconds = newMin;
-
         if (newMin >= currentMax) {
             const newMax = newMin + 1;
             extension_settings[extensionName].maxSeconds = newMax;
@@ -203,18 +208,14 @@ function onThrottleProtectionChange(event) {
     const value = Boolean($(event.target).prop("checked"));
     extension_settings[extensionName].throttleProtection = value;
     saveSettingsDebounced();
-    console.log(`[${extensionName}] Throttle protection setting saved:`, value);
 }
 
-// NEW: Event handler for the sender choice radio buttons
 function onSenderChoiceChange(event) {
     const value = $(event.target).val();
     extension_settings[extensionName].senderChoice = value;
     saveSettingsDebounced();
-    console.log(`[${extensionName}] Sender choice saved:`, value);
 }
 
-// NEW: Event handler for the char message textarea
 function onCharMessageChange(event) {
     const value = $(event.target).val();
     extension_settings[extensionName].charMessage = value;
@@ -237,7 +238,6 @@ jQuery(async () => {
         $("#autochat-max-seconds").on("input", onMaxSecondsChange);
         $("#autochat-repeats").on("input", onRepeatsChange);
         $("#autochat-throttle-protection").on("input", onThrottleProtectionChange);
-        // NEW: Bind new event handlers
         $("input[name='autochat-sender-choice']").on("change", onSenderChoiceChange);
         $("#autochat-char-message").on("input", onCharMessageChange);
         $("#autochat-message").on("input", onMessageChange);
