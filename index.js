@@ -3,14 +3,14 @@ import { extension_settings, getContext, loadExtensionSettings } from "../../../
 import { saveSettingsDebounced, eventSource } from "../../../../script.js";
 
 // Extension name MUST match folder name
-const extensionName = "random-timer";
+const extensionName = "autochat"; // CHANGED from "random-timer"
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 
 const defaultSettings = {
     enabled: false,
     minSeconds: 5,
     maxSeconds: 60,
-    message: "The random timer has finished.",
+    message: "The autochat timer has finished.",
 };
 
 async function loadSettings() {
@@ -18,10 +18,10 @@ async function loadSettings() {
     if (Object.keys(extension_settings[extensionName]).length === 0) {
         Object.assign(extension_settings[extensionName], defaultSettings);
     }
-    $("#random-timer-enabled").prop("checked", extension_settings[extensionName].enabled);
-    $("#random-timer-min-seconds").val(extension_settings[extensionName].minSeconds);
-    $("#random-timer-max-seconds").val(extension_settings[extensionName].maxSeconds);
-    $("#random-timer-message").val(extension_settings[extensionName].message);
+    $("#autochat-enabled").prop("checked", extension_settings[extensionName].enabled);
+    $("#autochat-min-seconds").val(extension_settings[extensionName].minSeconds);
+    $("#autochat-max-seconds").val(extension_settings[extensionName].maxSeconds);
+    $("#autochat-message").val(extension_settings[extensionName].message);
 }
 
 function onCheckboxChange(event) {
@@ -31,18 +31,18 @@ function onCheckboxChange(event) {
     console.log(`[${extensionName}] Setting saved:`, value);
 
     if (value) {
-        startRandomTimer();
+        startAutochatTimer();
     }
 }
 
-function startRandomTimer() {
+function startAutochatTimer() {
     const minSec = extension_settings[extensionName].minSeconds;
     const maxSec = extension_settings[extensionName].maxSeconds;
 
     if (minSec >= maxSec) {
         toastr.error("Minimum seconds must be less than Maximum seconds.");
         console.error(`[${extensionName}] Invalid range: min (${minSec}) >= max (${maxSec})`);
-        $("#random-timer-enabled").prop("checked", false);
+        $("#autochat-enabled").prop("checked", false);
         extension_settings[extensionName].enabled = false;
         saveSettingsDebounced();
         return;
@@ -103,15 +103,11 @@ jQuery(async () => {
         const settingsHtml = await $.get(`${extensionFolderPath}/example.html`);
         $("#extensions_settings2").append(settingsHtml);
        
-        $("#random-timer-enabled").on("input", onCheckboxChange);
-        $("#random-timer-min-seconds").on("input", onMinSecondsChange);
-        $("#random-timer-max-seconds").on("input", onMaxSecondsChange);
-        $("#random-timer-message").on("input", onMessageChange);
+        $("#autochat-enabled").on("input", onCheckboxChange);
+        $("#autochat-min-seconds").on("input", onMinSecondsChange);
+        $("#autochat-max-seconds").on("input", onMaxSecondsChange);
+        $("#autochat-message").on("input", onMessageChange);
        
         loadSettings();
        
-        console.log(`[${extensionName}] ✅ Loaded successfully`);
-    } catch (error) {
-        console.error(`[${extensionName}] ❌ Failed to load:`, error);
-    }
-});
+        console.log(`
