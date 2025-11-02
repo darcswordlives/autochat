@@ -1,8 +1,6 @@
 // Import from SillyTavern core
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { saveSettingsDebounced } from "../../../../script.js";
-// NEW: Import additional functions for chat manipulation
-import { generate, appendMessage, saveChat, eventSource, event_types } from "../../../../script.js";
 
 // Extension name MUST match folder name
 const extensionName = "autochat";
@@ -14,6 +12,7 @@ const defaultSettings = {
     minTime: 5,
     maxTime: 10,
     messageTemplate: "It has been {seconds} seconds since the last message. Time for another one!\n\nWhat are your thoughts on this?",
+    // NEW: Default repeat count (null means infinite)
     repeatCount: null
 };
 
@@ -21,8 +20,6 @@ const defaultSettings = {
 let timerInterval = null;
 let currentCountdown = 0;
 let lastCountdownDuration = 0;
-// NEW: Track the number of messages sent
-let messagesSent = 0;
 
 // Function to load settings into the UI
 async function loadSettings() {
@@ -47,6 +44,7 @@ async function loadSettings() {
     $("#autochat_min_time").val(extension_settings[extensionName].minTime);
     $("#autochat_max_time").val(extension_settings[extensionName].maxTime);
     $("#autochat_message_template").val(extension_settings[extensionName].messageTemplate);
+    // NEW: Load repeat count. If null (infinite), leave the input blank.
     const repeatCount = extension_settings[extensionName].repeatCount;
     $("#autochat_repeat_count").val(repeatCount === null ? "" : repeatCount);
 }
@@ -116,15 +114,17 @@ function onMessageTemplateChange(event) {
     console.log(`[${extensionName}] Message template saved.`);
 }
 
-// Event handler for repeat count input
+// NEW: Event handler for repeat count input
 function onRepeatCountChange(event) {
     let inputVal = $(event.target).val();
     let newRepeatCount;
 
+    // If input is blank, save as null (infinite)
     if (inputVal === "") {
         console.warn(`[${extensionName}] Repeat count is blank. Setting to infinite.`);
         newRepeatCount = null;
     } else {
+        // Otherwise, save the number
         newRepeatCount = Number(inputVal);
     }
 
@@ -133,36 +133,7 @@ function onRepeatCountChange(event) {
     console.log(`[${extensionName}] Repeat count saved:`, newRepeatCount === null ? "Infinite" : newRepeatCount);
 }
 
-// NEW: Function to send a message to the chat
-function sendMessage(message) {
-    try {
-        const context = getContext();
-        
-        // Create a message object
-        const messageObject = {
-            name: context.name1, // User's name
-            is_user: true,
-            is_name: true,
-            send_date: getMessageTimeStamp(),
-            mes: message
-        };
-        
-        // Add the message to the chat
-        context.chat.push(messageObject);
-        
-        // Update the UI
-        appendMessage(messageObject);
-        
-        // Save the chat
-        saveChat();
-        
-        console.log(`[${extensionName}] Message sent to chat:`, message);
-    } catch (error) {
-        console.error(`[${extensionName}] Failed to send message:`, error);
-    }
-}
-
-// UPDATED: Function to start the timer
+// Function to start the timer
 function startTimer() {
     stopTimer();
 
@@ -181,45 +152,22 @@ function startTimer() {
 
         if (currentCountdown <= 0) {
             console.log(`[${extensionName}] Timer finished!`);
-            
-            // Process the message template
             const template = extension_settings[extensionName].messageTemplate;
             const processedMessage = template.replace(/{seconds}/g, lastCountdownDuration);
-            
-            // NEW: Send the message to the chat
-            sendMessage(processedMessage);
-            
-            // Increment the message counter
-            messagesSent++;
-            
-            // Check if we've reached the repeat limit (if set)
-            const repeatCount = extension_settings[extensionName].repeatCount;
-            if (repeatCount !== null && messagesSent >= repeatCount) {
-                console.log(`[${extensionName}] Repeat limit reached. Stopping timer.`);
-                stopTimer();
-                // Reset the counter for next time
-                messagesSent = 0;
-                // Uncheck the enabled box
-                $("#autochat_enabled").prop("checked", false);
-                extension_settings[extensionName].enabled = false;
-                saveSettingsDebounced();
-            } else {
-                // Restart the timer
-                startTimer();
-            }
+            console.log(`[${extensionName}] Processed Message:`, processedMessage);
+
+            startTimer();
         }
     }, 1000);
 }
 
-// UPDATED: Function to stop the timer
+// Function to stop the timer
 function stopTimer() {
     if (timerInterval) {
         clearInterval(timerInterval);
         timerInterval = null;
         console.log(`[${extensionName}] Timer stopped.`);
         $("#autochat_timer_display").text("Timer: Stopped");
-        // Reset the message counter
-        messagesSent = 0;
     }
 }
 
@@ -249,6 +197,7 @@ jQuery(async () => {
         $("#autochat_min_time").on("input", onMinTimeChange);
         $("#autochat_max_time").on("input", onMaxTimeChange);
         $("#autochat_message_template").on("input", onMessageTemplateChange);
+        // NEW: Bind repeat count event
         $("#autochat_repeat_count").on("input", onRepeatCountChange);
         $("#autochat_test_button").on("click", onButtonClick);
        
