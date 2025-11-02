@@ -5,12 +5,14 @@ const extensionName = "autochat";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 
 let autochatTimerId = null;
+let currentRepeatCount = 0;
 
 const defaultSettings = {
     enabled: false,
     minSeconds: 5,
     maxSeconds: 60,
     message: "{{user}} has not responded in the last {seconds} seconds.",
+    repeats: 0,
 };
 
 async function loadSettings() {
@@ -29,6 +31,14 @@ async function loadSettings() {
     $("#autochat-min-seconds").val(extension_settings[extensionName].minSeconds);
     $("#autochat-max-seconds").val(extension_settings[extensionName].maxSeconds);
     $("#autochat-message").val(extension_settings[extensionName].message);
+    $("#autochat-repeats").val(extension_settings[extensionName].repeats);
+
+    // NEW: Check if the extension was enabled on startup and start the initial timer
+    if (extension_settings[extensionName].enabled) {
+        console.log(`[${extensionName}] Extension was enabled on startup. Starting initial timer.`);
+        currentRepeatCount = 0;
+        startInitialTimer();
+    }
 }
 
 function onCheckboxChange(event) {
@@ -38,7 +48,8 @@ function onCheckboxChange(event) {
     console.log(`[${extensionName}] Setting saved:`, value);
 
     if (value) {
-        startAutochatTimer();
+        currentRepeatCount = 0;
+        startAutochatTimer(); // Manual start uses the random timer
     } else {
         stopAutochatTimer();
     }
@@ -51,6 +62,68 @@ function stopAutochatTimer() {
         console.log(`[${extensionName}] Timer stopped.`);
         toastr.info("Autochat timer stopped.");
     }
+}
+
+// NEW: Function for the initial timer on startup, which uses the max time
+function startInitialTimer() {
+    if (autochatTimerId) {
+        clearTimeout(autochatTimerId);
+    }
+    const maxSec = extension_settings[extensionName].maxSeconds;
+    const minSec = extension_settings[extensionName].minSeconds;
+
+    if (minSec >= maxSec) {
+        console.error(`[${extensionName}] Invalid range on startup: min (${minSec}) >= max (${maxSec}). Disabling.`);
+        $("#autochat-enabled").prop("checked", false);
+        extension_settings[extensionName].enabled = false;
+        saveSettingsDebounced();
+        return;
+    }
+
+    console.log(`[${extensionName}] Initial startup timer started for ${maxSec} seconds.`);
+    toastr.info(`Autochat enabled. Starting initial timer for ${maxSec} seconds.`);
+
+    autochatTimerId = setTimeout(() => {
+        const messageTemplate = extension_settings[extensionName].message;
+        const finalMessage = messageTemplate.replace('{seconds}', maxSec);
+
+        console.log(`[${extensionName}] Initial timer ended! Sending message via prompt:`, finalMessage);
+        toastr.success("Message sent!");
+
+        if (finalMessage) {
+            const $sendTextarea = $("#send_textarea");
+            const $sendButton = $("#send_but");
+
+            if ($sendTextarea.length > 0 && $sendButton.length > 0) {
+                $sendTextarea.val(finalMessage);
+                $sendTextarea.trigger('input');
+                $sendButton.trigger('click');
+            } else {
+                console.error(`[${extensionName}] Could not find send textarea or button.`);
+            }
+        } else {
+            console.warn(`[${extensionName}] Initial timer ended, but the message was empty.`);
+        }
+
+        // After the initial timer, check if we should continue with the normal loop
+        currentRepeatCount++;
+        const totalRepeats = extension_settings[extensionName].repeats;
+
+        if (totalRepeats > 0 && currentRepeatCount >= totalRepeats) {
+            console.log(`[${extensionName}] Repeat limit of ${totalRepeats} reached. Stopping timer.`);
+            toastr.info("Autochat finished all repeats.");
+            $("#autochat-enabled").prop("checked", false);
+            extension_settings[extensionName].enabled = false;
+            saveSettingsDebounced();
+            return;
+        }
+
+        if (extension_settings[extensionName].enabled) {
+            console.log(`[${extensionName}] Initial timer finished. Switching to random timers... (${currentRepeatCount}/${totalRepeats || '∞'})`);
+            // Start the normal random timer loop
+            startAutochatTimer();
+        }
+    }, maxSec * 1000);
 }
 
 function startAutochatTimer() {
@@ -93,44 +166,63 @@ function startAutochatTimer() {
             console.warn(`[${extensionName}] Timer ended, but the message was empty.`);
         }
 
+        currentRepeatCount++;
+        const totalRepeats = extension_settings[extensionName].repeats;
+
+        if (totalRepeats > 0 && currentRepeatCount >= totalRepeats) {
+            console.log(`[${extensionName}] Repeat limit of ${totalRepeats} reached. Stopping timer.`);
+            toastr.info("Autochat finished all repeats.");
+            $("#autochat-enabled").prop("checked", false);
+            extension_settings[extensionName].enabled = false;
+            saveSettingsDebounced();
+            return;
+        }
+
         if (extension_settings[extensionName].enabled) {
-            console.log(`[${extensionName}] Restarting timer...`);
+            console.log(`[${extensionName}] Restarting timer... (${currentRepeatCount}/${totalRepeats || '∞'})`);
             startAutochatTimer();
         }
     }, randomSeconds * 1000);
 }
 
-// UPDATED: Added validation
 function onMinSecondsChange(event) {
-    const value = parseInt($(event.target).val(), 10);
-    const maxSec = extension_settings[extensionName].maxSeconds;
+    const newMin = parseInt($(event.target).val(), 10);
+    const maxInput = $("#autochat-max-seconds");
 
-    if (!isNaN(value) && value > 0) {
-        if (value >= maxSec) {
-            toastr.error("Minimum seconds must be less than Maximum seconds.");
-            // Reset the input to the last valid value
-            $(event.target).val(extension_settings[extensionName].minSeconds);
-        } else {
-            extension_settings[extensionName].minSeconds = value;
-            saveSettingsDebounced();
+    if (!isNaN(newMin) && newMin > 0) {
+        extension_settings[extensionName].minSeconds = newMin;
+
+        if (newMin >= extension_settings[extensionName].maxSeconds) {
+            const newMax = newMin + 1;
+            extension_settings[extensionName].maxSeconds = newMax;
+            maxInput.val(newMax);
         }
+        saveSettingsDebounced();
     }
 }
 
-// UPDATED: Added validation
 function onMaxSecondsChange(event) {
-    const value = parseInt($(event.target).val(), 10);
-    const minSec = extension_settings[extensionName].minSeconds;
+    const newMax = parseInt($(event.target).val(), 10);
+    const minInput = $("#autochat-min-seconds");
 
-    if (!isNaN(value) && value > 0) {
-        if (value <= minSec) {
-            toastr.error("Maximum seconds must be greater than Minimum seconds.");
-            // Reset the input to the last valid value
-            $(event.target).val(extension_settings[extensionName].maxSeconds);
-        } else {
-            extension_settings[extensionName].maxSeconds = value;
-            saveSettingsDebounced();
+    if (!isNaN(newMax) && newMax > 0) {
+        extension_settings[extensionName].maxSeconds = newMax;
+
+        if (newMax <= extension_settings[extensionName].minSeconds) {
+            const newMin = newMax - 1;
+            const finalMin = Math.max(1, newMin);
+            extension_settings[extensionName].minSeconds = finalMin;
+            minInput.val(finalMin);
         }
+        saveSettingsDebounced();
+    }
+}
+
+function onRepeatsChange(event) {
+    const value = parseInt($(event.target).val(), 10);
+    if (!isNaN(value) && value >= 0) {
+        extension_settings[extensionName].repeats = value;
+        saveSettingsDebounced();
     }
 }
 
@@ -148,6 +240,7 @@ jQuery(async () => {
         $("#autochat-enabled").on("input", onCheckboxChange);
         $("#autochat-min-seconds").on("input", onMinSecondsChange);
         $("#autochat-max-seconds").on("input", onMaxSecondsChange);
+        $("#autochat-repeats").on("input", onRepeatsChange);
         $("#autochat-message").on("input", onMessageChange);
         loadSettings();
         console.log(`[${extensionName}] ✅ Loaded successfully`);
