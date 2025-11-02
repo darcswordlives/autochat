@@ -10,7 +10,7 @@ const defaultSettings = {
     enabled: false,
     minSeconds: 5,
     maxSeconds: 60,
-    message: "The autochat timer has finished.",
+    message: "{{user}} has not responded in the last {seconds} seconds.",
 };
 
 async function loadSettings() {
@@ -18,6 +18,13 @@ async function loadSettings() {
     if (Object.keys(extension_settings[extensionName]).length === 0) {
         Object.assign(extension_settings[extensionName], defaultSettings);
     }
+
+    if (extension_settings[extensionName].message === "The autochat timer has finished.") {
+        extension_settings[extensionName].message = defaultSettings.message;
+        saveSettingsDebounced();
+        console.log(`[${extensionName}] Updated default message for existing user.`);
+    }
+
     $("#autochat-enabled").prop("checked", extension_settings[extensionName].enabled);
     $("#autochat-min-seconds").val(extension_settings[extensionName].minSeconds);
     $("#autochat-max-seconds").val(extension_settings[extensionName].maxSeconds);
@@ -65,20 +72,19 @@ function startAutochatTimer() {
     toastr.info(`Timer started for ${randomSeconds} seconds.`);
 
     autochatTimerId = setTimeout(() => {
-        const message = extension_settings[extensionName].message;
-        console.log(`[${extensionName}] Timer ended! Sending message via prompt:`, message);
+        const messageTemplate = extension_settings[extensionName].message;
+        const finalMessage = messageTemplate.replace('{seconds}', randomSeconds);
+
+        console.log(`[${extensionName}] Timer ended! Sending message via prompt:`, finalMessage);
         toastr.success("Message sent!");
 
-        if (message) {
-            // Place the message in the user's prompt box and send it
+        if (finalMessage) {
             const $sendTextarea = $("#send_textarea");
             const $sendButton = $("#send_but");
 
             if ($sendTextarea.length > 0 && $sendButton.length > 0) {
-                $sendTextarea.val(message);
-                // Trigger an 'input' event to ensure SillyTavern registers the change
+                $sendTextarea.val(finalMessage);
                 $sendTextarea.trigger('input');
-                // Programmatically click the send button
                 $sendButton.trigger('click');
             } else {
                 console.error(`[${extensionName}] Could not find send textarea or button.`);
@@ -94,20 +100,40 @@ function startAutochatTimer() {
     }, randomSeconds * 1000);
 }
 
+// UPDATED: Added validation
 function onMinSecondsChange(event) {
     const value = parseInt($(event.target).val(), 10);
+    const maxSec = extension_settings[extensionName].maxSeconds;
+
     if (!isNaN(value) && value > 0) {
-        extension_settings[extensionName].minSeconds = value;
-        saveSettingsDebounced();
+        if (value >= maxSec) {
+            toastr.error("Minimum seconds must be less than Maximum seconds.");
+            // Reset the input to the last valid value
+            $(event.target).val(extension_settings[extensionName].minSeconds);
+        } else {
+            extension_settings[extensionName].minSeconds = value;
+            saveSettingsDebounced();
+        }
     }
 }
+
+// UPDATED: Added validation
 function onMaxSecondsChange(event) {
     const value = parseInt($(event.target).val(), 10);
+    const minSec = extension_settings[extensionName].minSeconds;
+
     if (!isNaN(value) && value > 0) {
-        extension_settings[extensionName].maxSeconds = value;
-        saveSettingsDebounced();
+        if (value <= minSec) {
+            toastr.error("Maximum seconds must be greater than Minimum seconds.");
+            // Reset the input to the last valid value
+            $(event.target).val(extension_settings[extensionName].maxSeconds);
+        } else {
+            extension_settings[extensionName].maxSeconds = value;
+            saveSettingsDebounced();
+        }
     }
 }
+
 function onMessageChange(event) {
     const value = $(event.target).val();
     extension_settings[extensionName].message = value;
