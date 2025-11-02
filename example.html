@@ -1,51 +1,28 @@
-<!-- 
-  This is the root container for the extension's settings.
-  The class name "autochat-settings" should match the extension name.
--->
 <div class="autochat-settings">
-    
-    <!-- This is the standard SillyTavern structure for a collapsible drawer. -->
     <div class="inline-drawer">
-        
-        <!-- This is the header of the drawer. Clicking it toggles the drawer open/closed. -->
         <div class="inline-drawer-toggle inline-drawer-header">
-            <b>Autochat</b> <!-- This is the title displayed in the UI. -->
+            <b>Autochat</b>
             <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
         </div>
-        
-        <!-- This is the content area that is shown when the drawer is open. -->
         <div class="inline-drawer-content">
-            
-            <!-- The checkbox to enable/disable the extension. -->
             <div>
                 <input id="autochat-enabled" type="checkbox" />
                 <label for="autochat-enabled">Enable Autochat</label>
             </div>
-            
-            <!-- A horizontal line to separate settings. -->
             <hr>
-            
-            <!-- The input field for the minimum number of seconds. -->
             <div class="margin-top-10">
                 <label for="autochat-min-seconds">Minimum Seconds:</label>
                 <input id="autochat-min-seconds" type="number" min="1" class="text_pole" />
             </div>
-            
-            <!-- The input field for the maximum number of seconds. -->
             <div class="margin-top-10">
                 <label for="autochat-max-seconds">Maximum Seconds:</label>
                 <input id="autochat-max-seconds" type="number" min="1" class="text_pole" />
             </div>
-            
-            <!-- The text field for the message to be sent. -->
             <div class="margin-top-10">
                 <label for="autochat-message">End Message:</label>
                 <input id="autochat-message" type="text" class="text_pole" placeholder="Message to send when timer ends" />
             </div>
-            
-            <!-- Some helpful text for the user. -->
             <p><small>Checking the box will start a random countdown with the settings above.</small></p>
-            
         </div>
     </div>
 </div>
