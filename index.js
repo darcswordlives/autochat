@@ -6,7 +6,6 @@ const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 
 let autochatTimerId = null;
 let currentRepeatCount = 0;
-// NEW: Variable to track the time of the last sent message
 let lastSentTime = 0;
 
 const defaultSettings = {
@@ -14,8 +13,11 @@ const defaultSettings = {
     minSeconds: 5,
     maxSeconds: 3600,
     message: "{{user}} has not responded in the last {seconds} seconds.",
+    // NEW: Added char message and sender choice
+    charMessage: "{{char}} is getting impatient.",
+    senderChoice: "user", // 'user' or 'char'
     repeats: "",
-    throttleProtection: true, // NEW: Default to enabled
+    throttleProtection: true,
 };
 
 async function loadSettings() {
@@ -35,8 +37,11 @@ async function loadSettings() {
     $("#autochat-max-seconds").val(extension_settings[extensionName].maxSeconds);
     $("#autochat-message").val(extension_settings[extensionName].message);
     $("#autochat-repeats").val(extension_settings[extensionName].repeats);
-    // NEW: Load throttle protection setting
     $("#autochat-throttle-protection").prop("checked", extension_settings[extensionName].throttleProtection);
+    
+    // NEW: Load char message and sender choice
+    $("#autochat-char-message").val(extension_settings[extensionName].charMessage);
+    $(`input[name="autochat-sender-choice"][value="${extension_settings[extensionName].senderChoice}"]`).prop("checked", true);
 
     if (extension_settings[extensionName].enabled) {
         console.log(`[${extensionName}] Extension was enabled on startup. Starting initial timer.`);
@@ -113,19 +118,18 @@ function startAutochatTimer() {
     toastr.info(`Timer started for ${randomSeconds} seconds.`);
 
     autochatTimerId = setTimeout(() => {
+        // NOTE: The logic to choose the correct message template will be in the next step
         const messageTemplate = extension_settings[extensionName].message;
         const finalMessage = messageTemplate.replace('{seconds}', randomSeconds);
         handleTimerEnd(finalMessage);
     }, randomSeconds * 1000);
 }
 
-// NEW: Consolidated logic for when a timer ends
 function handleTimerEnd(finalMessage) {
     const now = Date.now();
     const throttleEnabled = extension_settings[extensionName].throttleProtection;
     const throttleTime = 2 * 60 * 1000; // 2 minutes in ms
 
-    // Check if message should be throttled
     if (throttleEnabled && (now - lastSentTime < throttleTime)) {
         console.log(`[${extensionName}] Message throttled. Last message was sent less than 2 minutes ago.`);
         toastr.warning("Autochat message was throttled to prevent spam.");
@@ -143,13 +147,11 @@ function handleTimerEnd(finalMessage) {
         } else {
             console.error(`[${extensionName}] Could not find send textarea or button.`);
         }
-        // Update last sent time only if a message was actually sent
         lastSentTime = now;
     } else {
         console.warn(`[${extensionName}] Timer ended, but the message was empty.`);
     }
 
-    // Handle repeats and restart logic
     currentRepeatCount++;
     const totalRepeats = parseInt(extension_settings[extensionName].repeats, 10) || 0;
 
@@ -197,12 +199,26 @@ function onRepeatsChange(event) {
     saveSettingsDebounced();
 }
 
-// NEW: Event handler for the throttle protection checkbox
 function onThrottleProtectionChange(event) {
     const value = Boolean($(event.target).prop("checked"));
     extension_settings[extensionName].throttleProtection = value;
     saveSettingsDebounced();
     console.log(`[${extensionName}] Throttle protection setting saved:`, value);
+}
+
+// NEW: Event handler for the sender choice radio buttons
+function onSenderChoiceChange(event) {
+    const value = $(event.target).val();
+    extension_settings[extensionName].senderChoice = value;
+    saveSettingsDebounced();
+    console.log(`[${extensionName}] Sender choice saved:`, value);
+}
+
+// NEW: Event handler for the char message textarea
+function onCharMessageChange(event) {
+    const value = $(event.target).val();
+    extension_settings[extensionName].charMessage = value;
+    saveSettingsDebounced();
 }
 
 function onMessageChange(event) {
@@ -220,8 +236,10 @@ jQuery(async () => {
         $("#autochat-min-seconds").on("input", onMinSecondsChange);
         $("#autochat-max-seconds").on("input", onMaxSecondsChange);
         $("#autochat-repeats").on("input", onRepeatsChange);
-        // NEW: Bind throttle protection event
         $("#autochat-throttle-protection").on("input", onThrottleProtectionChange);
+        // NEW: Bind new event handlers
+        $("input[name='autochat-sender-choice']").on("change", onSenderChoiceChange);
+        $("#autochat-char-message").on("input", onCharMessageChange);
         $("#autochat-message").on("input", onMessageChange);
         loadSettings();
         console.log(`[${extensionName}] ✅ Loaded successfully`);
