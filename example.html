@@ -5,15 +5,17 @@
             <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
         </div>
         <div class="inline-drawer-content">
-            <div>
-                <input id="autochat-enabled" type="checkbox" />
-                <label for="autochat-enabled">Enable Autochat</label>
-            </div>
-            <hr>
             <div class="margin-top-10">
                 <label for="autochat-repeats">Number of Repeats:</label>
                 <input id="autochat-repeats" type="number" min="0" class="text_pole" style="width: 80px;" />
-                <small>(0 = infinite)</small>
+                <small>(if left blank, repeats will be infinite)</small>
+            </div>
+            <!-- NEW: Throttle protection checkbox -->
+            <div class="margin-top-10">
+                <input id="autochat-throttle-protection" type="checkbox" checked />
+                <label for="autochat-throttle-protection">Throttle protection</label>
+                <br>
+                <small>Prevents more than 1 message every 2 minutes.</small>
             </div>
             <div class="margin-top-10">
                 <label for="autochat-min-seconds">Minimum Seconds:</label>
@@ -22,11 +24,16 @@
             <div class="margin-top-10">
                 <label for="autochat-max-seconds">Maximum Seconds:</label>
                 <input id="autochat-max-seconds" type="number" min="1" class="text_pole" />
+                <small>(default value of 3600 seconds if left blank)</small>
             </div>
-            <!-- UPDATED: Label and input type -->
             <div class="margin-top-10">
                 <label for="autochat-message">{{User}} generated message:</label>
                 <textarea id="autochat-message" class="text_pole" rows="4" placeholder="Use {seconds} for the random time"></textarea>
+            </div>
+            <hr>
+            <div>
+                <input id="autochat-enabled" type="checkbox" />
+                <label for="autochat-enabled">Enable Autochat</label>
             </div>
             <p><small>Checking the box will start a random countdown with the settings above.</small></p>
         </div>
