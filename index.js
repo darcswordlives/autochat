@@ -6,6 +6,7 @@ const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 
 let autochatTimerId = null;
 let currentRepeatCount = 0;
+// NEW: Variable to track the time of the last sent message
 let lastSentTime = 0;
 
 const defaultSettings = {
@@ -14,7 +15,7 @@ const defaultSettings = {
     maxSeconds: 3600,
     message: "{{user}} has not responded in the last {seconds} seconds.",
     repeats: "",
-    throttleProtection: true,
+    throttleProtection: true, // NEW: Default to enabled
 };
 
 async function loadSettings() {
@@ -34,6 +35,7 @@ async function loadSettings() {
     $("#autochat-max-seconds").val(extension_settings[extensionName].maxSeconds);
     $("#autochat-message").val(extension_settings[extensionName].message);
     $("#autochat-repeats").val(extension_settings[extensionName].repeats);
+    // NEW: Load throttle protection setting
     $("#autochat-throttle-protection").prop("checked", extension_settings[extensionName].throttleProtection);
 
     if (extension_settings[extensionName].enabled) {
@@ -117,11 +119,13 @@ function startAutochatTimer() {
     }, randomSeconds * 1000);
 }
 
+// NEW: Consolidated logic for when a timer ends
 function handleTimerEnd(finalMessage) {
     const now = Date.now();
     const throttleEnabled = extension_settings[extensionName].throttleProtection;
     const throttleTime = 2 * 60 * 1000; // 2 minutes in ms
 
+    // Check if message should be throttled
     if (throttleEnabled && (now - lastSentTime < throttleTime)) {
         console.log(`[${extensionName}] Message throttled. Last message was sent less than 2 minutes ago.`);
         toastr.warning("Autochat message was throttled to prevent spam.");
@@ -139,11 +143,13 @@ function handleTimerEnd(finalMessage) {
         } else {
             console.error(`[${extensionName}] Could not find send textarea or button.`);
         }
+        // Update last sent time only if a message was actually sent
         lastSentTime = now;
     } else {
         console.warn(`[${extensionName}] Timer ended, but the message was empty.`);
     }
 
+    // Handle repeats and restart logic
     currentRepeatCount++;
     const totalRepeats = parseInt(extension_settings[extensionName].repeats, 10) || 0;
 
@@ -191,6 +197,7 @@ function onRepeatsChange(event) {
     saveSettingsDebounced();
 }
 
+// NEW: Event handler for the throttle protection checkbox
 function onThrottleProtectionChange(event) {
     const value = Boolean($(event.target).prop("checked"));
     extension_settings[extensionName].throttleProtection = value;
@@ -213,6 +220,7 @@ jQuery(async () => {
         $("#autochat-min-seconds").on("input", onMinSecondsChange);
         $("#autochat-max-seconds").on("input", onMaxSecondsChange);
         $("#autochat-repeats").on("input", onRepeatsChange);
+        // NEW: Bind throttle protection event
         $("#autochat-throttle-protection").on("input", onThrottleProtectionChange);
         $("#autochat-message").on("input", onMessageChange);
         loadSettings();
