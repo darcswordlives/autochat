@@ -12,7 +12,6 @@ const defaultSettings = {
     minTime: 5,
     maxTime: 10,
     messageTemplate: "It has been {seconds} seconds since the last message. Time for another one!\n\nWhat are your thoughts on this?",
-    // NEW: Default repeat count (null means infinite)
     repeatCount: null
 };
 
@@ -20,6 +19,7 @@ const defaultSettings = {
 let timerInterval = null;
 let currentCountdown = 0;
 let lastCountdownDuration = 0;
+let messagesSent = 0;
 
 // Function to load settings into the UI
 async function loadSettings() {
@@ -44,7 +44,6 @@ async function loadSettings() {
     $("#autochat_min_time").val(extension_settings[extensionName].minTime);
     $("#autochat_max_time").val(extension_settings[extensionName].maxTime);
     $("#autochat_message_template").val(extension_settings[extensionName].messageTemplate);
-    // NEW: Load repeat count. If null (infinite), leave the input blank.
     const repeatCount = extension_settings[extensionName].repeatCount;
     $("#autochat_repeat_count").val(repeatCount === null ? "" : repeatCount);
 }
@@ -114,17 +113,15 @@ function onMessageTemplateChange(event) {
     console.log(`[${extensionName}] Message template saved.`);
 }
 
-// NEW: Event handler for repeat count input
+// Event handler for repeat count input
 function onRepeatCountChange(event) {
     let inputVal = $(event.target).val();
     let newRepeatCount;
 
-    // If input is blank, save as null (infinite)
     if (inputVal === "") {
         console.warn(`[${extensionName}] Repeat count is blank. Setting to infinite.`);
         newRepeatCount = null;
     } else {
-        // Otherwise, save the number
         newRepeatCount = Number(inputVal);
     }
 
@@ -133,7 +130,25 @@ function onRepeatCountChange(event) {
     console.log(`[${extensionName}] Repeat count saved:`, newRepeatCount === null ? "Infinite" : newRepeatCount);
 }
 
-// Function to start the timer
+// FIXED: Simplified function to send a message to the chat
+function sendMessage(message) {
+    try {
+        // Get the chat input field
+        const chatInput = $("#send_textarea");
+        
+        // Set the message in the input field
+        chatInput.val(message);
+        
+        // Trigger a click on the send button
+        $("#send_but").trigger('click');
+        
+        console.log(`[${extensionName}] Message sent to chat:`, message);
+    } catch (error) {
+        console.error(`[${extensionName}] Failed to send message:`, error);
+    }
+}
+
+// UPDATED: Function to start the timer
 function startTimer() {
     stopTimer();
 
@@ -152,22 +167,42 @@ function startTimer() {
 
         if (currentCountdown <= 0) {
             console.log(`[${extensionName}] Timer finished!`);
+            
+            // Process the message template
             const template = extension_settings[extensionName].messageTemplate;
             const processedMessage = template.replace(/{seconds}/g, lastCountdownDuration);
-            console.log(`[${extensionName}] Processed Message:`, processedMessage);
-
-            startTimer();
+            
+            // Send the message to the chat
+            sendMessage(processedMessage);
+            
+            // Increment the message counter
+            messagesSent++;
+            
+            // Check if we've reached the repeat limit (if set)
+            const repeatCount = extension_settings[extensionName].repeatCount;
+            if (repeatCount !== null && messagesSent >= repeatCount) {
+                console.log(`[${extensionName}] Repeat limit reached. Stopping timer.`);
+                stopTimer();
+                messagesSent = 0;
+                $("#autochat_enabled").prop("checked", false);
+                extension_settings[extensionName].enabled = false;
+                saveSettingsDebounced();
+            } else {
+                // Restart the timer
+                startTimer();
+            }
         }
     }, 1000);
 }
 
-// Function to stop the timer
+// UPDATED: Function to stop the timer
 function stopTimer() {
     if (timerInterval) {
         clearInterval(timerInterval);
         timerInterval = null;
         console.log(`[${extensionName}] Timer stopped.`);
         $("#autochat_timer_display").text("Timer: Stopped");
+        messagesSent = 0;
     }
 }
 
@@ -197,7 +232,6 @@ jQuery(async () => {
         $("#autochat_min_time").on("input", onMinTimeChange);
         $("#autochat_max_time").on("input", onMaxTimeChange);
         $("#autochat_message_template").on("input", onMessageTemplateChange);
-        // NEW: Bind repeat count event
         $("#autochat_repeat_count").on("input", onRepeatCountChange);
         $("#autochat_test_button").on("click", onButtonClick);
        
