@@ -11,9 +11,10 @@ const defaultSettings = {
     enabled: false,
     minTime: 5,
     maxTime: 10,
+    // UPDATED: Default startup timer duration is now 120 seconds
+    startupTime: 120,
     messageTemplate: "It has been {seconds} seconds since the last message. Time for another one!\n\nWhat are your thoughts on this?",
     repeatCount: null,
-    // UPDATED: Default state for throttle safety is now checked (true)
     throttleSafety: true
 };
 
@@ -22,6 +23,8 @@ let timerInterval = null;
 let currentCountdown = 0;
 let lastCountdownDuration = 0;
 let messagesSent = 0;
+// Flag to detect the first run after a page load
+let isFirstRun = true;
 
 // Function to load settings into the UI
 async function loadSettings() {
@@ -42,9 +45,17 @@ async function loadSettings() {
         saveSettingsDebounced();
     }
 
+    // Validate startup time
+    if (isNaN(extension_settings[extensionName].startupTime) || extension_settings[extensionName].startupTime <= 0) {
+        console.warn(`[${extensionName}] Invalid startupTime detected. Defaulting to 120.`);
+        extension_settings[extensionName].startupTime = 120;
+        saveSettingsDebounced();
+    }
+
     $("#autochat_enabled").prop("checked", extension_settings[extensionName].enabled);
     $("#autochat_min_time").val(extension_settings[extensionName].minTime);
     $("#autochat_max_time").val(extension_settings[extensionName].maxTime);
+    $("#autochat_startup_time").val(extension_settings[extensionName].startupTime);
     $("#autochat_message_template").val(extension_settings[extensionName].messageTemplate);
     const repeatCount = extension_settings[extensionName].repeatCount;
     $("#autochat_repeat_count").val(repeatCount === null ? "" : repeatCount);
@@ -108,6 +119,24 @@ function onMaxTimeChange(event) {
     console.log(`[${extensionName}] Times saved - Min: ${currentMinTime}, Max: ${newMaxTime}`);
 }
 
+// Event handler for startup time input
+function onStartupTimeChange(event) {
+    let inputVal = $(event.target).val();
+    let newStartupTime;
+
+    if (inputVal === "" || isNaN(Number(inputVal))) {
+        console.warn(`[${extensionName}] Startup time is blank or invalid. Defaulting to 120.`);
+        newStartupTime = 120;
+        $("#autochat_startup_time").val(newStartupTime);
+    } else {
+        newStartupTime = Number(inputVal);
+    }
+
+    extension_settings[extensionName].startupTime = newStartupTime;
+    saveSettingsDebounced();
+    console.log(`[${extensionName}] Startup time saved:`, newStartupTime);
+}
+
 // Event handler for message template textarea
 function onMessageTemplateChange(event) {
     const value = $(event.target).val();
@@ -159,11 +188,20 @@ function startTimer() {
 
     const minTime = extension_settings[extensionName].minTime;
     const maxTime = extension_settings[extensionName].maxTime;
+    const startupTime = extension_settings[extensionName].startupTime;
 
-    lastCountdownDuration = Math.floor(Math.random() * (maxTime - minTime + 1)) + minTime;
+    // Check if this is the first run after loading
+    if (isFirstRun) {
+        lastCountdownDuration = startupTime;
+        isFirstRun = false; // Set flag to false for subsequent runs
+        console.log(`[${extensionName}] First run detected. Starting timer at startup time: ${lastCountdownDuration} seconds.`);
+    } else {
+        lastCountdownDuration = Math.floor(Math.random() * (maxTime - minTime + 1)) + minTime;
+        console.log(`[${extensionName}] Subsequent run. Starting timer at random time: ${lastCountdownDuration} seconds.`);
+    }
+    
     currentCountdown = lastCountdownDuration;
 
-    console.log(`[${extensionName}] Timer started for ${currentCountdown} seconds.`);
     $("#autochat_timer_display").text(`Timer: ${currentCountdown}s`);
 
     timerInterval = setInterval(() => {
@@ -203,6 +241,8 @@ function stopTimer() {
         console.log(`[${extensionName}] Timer stopped.`);
         $("#autochat_timer_display").text("Timer: Stopped");
         messagesSent = 0;
+        // Reset the first run flag when stopping manually
+        isFirstRun = true;
     }
 }
 
@@ -217,6 +257,7 @@ jQuery(async () => {
         $("#autochat_enabled").on("input", onCheckboxChange);
         $("#autochat_min_time").on("input", onMinTimeChange);
         $("#autochat_max_time").on("input", onMaxTimeChange);
+        $("#autochat_startup_time").on("input", onStartupTimeChange);
         $("#autochat_message_template").on("input", onMessageTemplateChange);
         $("#autochat_repeat_count").on("input", onRepeatCountChange);
         $("#autochat_throttle_safety").on("input", onThrottleSafetyChange);
