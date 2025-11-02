@@ -6,16 +6,13 @@ const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 
 let autochatTimerId = null;
 let currentRepeatCount = 0;
-// NEW: Variable to track the time of the last sent message
-let lastSentTime = 0;
 
 const defaultSettings = {
     enabled: false,
     minSeconds: 5,
-    maxSeconds: 3600,
+    maxSeconds: 3600, // UPDATED: Default is now 3600
     message: "{{user}} has not responded in the last {seconds} seconds.",
     repeats: "",
-    throttleProtection: true, // NEW: Default to enabled
 };
 
 async function loadSettings() {
@@ -32,11 +29,10 @@ async function loadSettings() {
 
     $("#autochat-enabled").prop("checked", extension_settings[extensionName].enabled);
     $("#autochat-min-seconds").val(extension_settings[extensionName].minSeconds);
+    // Load the value, which could be a number or an empty string
     $("#autochat-max-seconds").val(extension_settings[extensionName].maxSeconds);
     $("#autochat-message").val(extension_settings[extensionName].message);
     $("#autochat-repeats").val(extension_settings[extensionName].repeats);
-    // NEW: Load throttle protection setting
-    $("#autochat-throttle-protection").prop("checked", extension_settings[extensionName].throttleProtection);
 
     if (extension_settings[extensionName].enabled) {
         console.log(`[${extensionName}] Extension was enabled on startup. Starting initial timer.`);
@@ -72,6 +68,7 @@ function startInitialTimer() {
     if (autochatTimerId) {
         clearTimeout(autochatTimerId);
     }
+    // UPDATED: Parse maxSec with a default of 3600
     const maxSec = parseInt(extension_settings[extensionName].maxSeconds, 10) || 3600;
     const minSec = extension_settings[extensionName].minSeconds;
 
@@ -89,7 +86,41 @@ function startInitialTimer() {
     autochatTimerId = setTimeout(() => {
         const messageTemplate = extension_settings[extensionName].message;
         const finalMessage = messageTemplate.replace('{seconds}', maxSec);
-        handleTimerEnd(finalMessage);
+
+        console.log(`[${extensionName}] Initial timer ended! Sending message via prompt:`, finalMessage);
+        toastr.success("Message sent!");
+
+        if (finalMessage) {
+            const $sendTextarea = $("#send_textarea");
+            const $sendButton = $("#send_but";
+
+            if ($sendTextarea.length > 0 && $sendButton.length > 0) {
+                $sendTextarea.val(finalMessage);
+                $sendTextarea.trigger('input');
+                $sendButton.trigger('click');
+            } else {
+                console.error(`[${extensionName}] Could not find send textarea or button.`);
+            }
+        } else {
+            console.warn(`[${extensionName}] Initial timer ended, but the message was empty.`);
+        }
+
+        currentRepeatCount++;
+        const totalRepeats = parseInt(extension_settings[extensionName].repeats, 10) || 0;
+
+        if (totalRepeats > 0 && currentRepeatCount >= totalRepeats) {
+            console.log(`[${extensionName}] Repeat limit of ${totalRepeats} reached. Stopping timer.`);
+            toastr.info("Autochat finished all repeats.");
+            $("#autochat-enabled").prop("checked", false);
+            extension_settings[extensionName].enabled = false;
+            saveSettingsDebounced();
+            return;
+        }
+
+        if (extension_settings[extensionName].enabled) {
+            console.log(`[${extensionName}] Initial timer finished. Switching to random timers... (${currentRepeatCount}/${totalRepeats || '∞'})`);
+            startAutochatTimer();
+        }
     }, maxSec * 1000);
 }
 
@@ -98,6 +129,7 @@ function startAutochatTimer() {
         clearTimeout(autochatTimerId);
     }
     const minSec = extension_settings[extensionName].minSeconds;
+    // UPDATED: Parse maxSec with a default of 3600
     const maxSec = parseInt(extension_settings[extensionName].maxSeconds, 10) || 3600;
 
     if (minSec >= maxSec) {
@@ -115,61 +147,47 @@ function startAutochatTimer() {
     autochatTimerId = setTimeout(() => {
         const messageTemplate = extension_settings[extensionName].message;
         const finalMessage = messageTemplate.replace('{seconds}', randomSeconds);
-        handleTimerEnd(finalMessage);
-    }, randomSeconds * 1000);
-}
 
-// NEW: Consolidated logic for when a timer ends
-function handleTimerEnd(finalMessage) {
-    const now = Date.now();
-    const throttleEnabled = extension_settings[extensionName].throttleProtection;
-    const throttleTime = 2 * 60 * 1000; // 2 minutes in ms
-
-    // Check if message should be throttled
-    if (throttleEnabled && (now - lastSentTime < throttleTime)) {
-        console.log(`[${extensionName}] Message throttled. Last message was sent less than 2 minutes ago.`);
-        toastr.warning("Autochat message was throttled to prevent spam.");
-    } else if (finalMessage) {
         console.log(`[${extensionName}] Timer ended! Sending message via prompt:`, finalMessage);
         toastr.success("Message sent!");
 
-        const $sendTextarea = $("#send_textarea");
-        const $sendButton = $("#send_but";
+        if (finalMessage) {
+            const $sendTextarea = $("#send_textarea");
+            const $sendButton = $("#send_but";
 
-        if ($sendTextarea.length > 0 && $sendButton.length > 0) {
-            $sendTextarea.val(finalMessage);
-            $sendTextarea.trigger('input');
-            $sendButton.trigger('click');
+            if ($sendTextarea.length > 0 && $sendButton.length > 0) {
+                $sendTextarea.val(finalMessage);
+                $sendTextarea.trigger('input');
+                $sendButton.trigger('click');
+            } else {
+                console.error(`[${extensionName}] Could not find send textarea or button.`);
+            }
         } else {
-            console.error(`[${extensionName}] Could not find send textarea or button.`);
+            console.warn(`[${extensionName}] Timer ended, but the message was empty.`);
         }
-        // Update last sent time only if a message was actually sent
-        lastSentTime = now;
-    } else {
-        console.warn(`[${extensionName}] Timer ended, but the message was empty.`);
-    }
 
-    // Handle repeats and restart logic
-    currentRepeatCount++;
-    const totalRepeats = parseInt(extension_settings[extensionName].repeats, 10) || 0;
+        currentRepeatCount++;
+        const totalRepeats = parseInt(extension_settings[extensionName].repeats, 10) || 0;
 
-    if (totalRepeats > 0 && currentRepeatCount >= totalRepeats) {
-        console.log(`[${extensionName}] Repeat limit of ${totalRepeats} reached. Stopping timer.`);
-        toastr.info("Autochat finished all repeats.");
-        $("#autochat-enabled").prop("checked", false);
-        extension_settings[extensionName].enabled = false;
-        saveSettingsDebounced();
-        return;
-    }
+        if (totalRepeats > 0 && currentRepeatCount >= totalRepeats) {
+            console.log(`[${extensionName}] Repeat limit of ${totalRepeats} reached. Stopping timer.`);
+            toastr.info("Autochat finished all repeats.");
+            $("#autochat-enabled").prop("checked", false);
+            extension_settings[extensionName].enabled = false;
+            saveSettingsDebounced();
+            return;
+        }
 
-    if (extension_settings[extensionName].enabled) {
-        console.log(`[${extensionName}] Restarting timer... (${currentRepeatCount}/${totalRepeats || '∞'})`);
-        startAutochatTimer();
-    }
+        if (extension_settings[extensionName].enabled) {
+            console.log(`[${extensionName}] Restarting timer... (${currentRepeatCount}/${totalRepeats || '∞'})`);
+            startAutochatTimer();
+        }
+    }, randomSeconds * 1000);
 }
 
 function onMinSecondsChange(event) {
     const newMin = parseInt($(event.target).val(), 10);
+    // UPDATED: Parse maxSec with a default of 3600 for validation
     const currentMax = parseInt(extension_settings[extensionName].maxSeconds, 10) || 3600;
     const maxInput = $("#autochat-max-seconds");
 
@@ -185,6 +203,7 @@ function onMinSecondsChange(event) {
     }
 }
 
+// UPDATED: Simplified to save the string value directly
 function onMaxSecondsChange(event) {
     const value = $(event.target).val();
     extension_settings[extensionName].maxSeconds = value;
@@ -195,14 +214,6 @@ function onRepeatsChange(event) {
     const value = $(event.target).val();
     extension_settings[extensionName].repeats = value;
     saveSettingsDebounced();
-}
-
-// NEW: Event handler for the throttle protection checkbox
-function onThrottleProtectionChange(event) {
-    const value = Boolean($(event.target).prop("checked"));
-    extension_settings[extensionName].throttleProtection = value;
-    saveSettingsDebounced();
-    console.log(`[${extensionName}] Throttle protection setting saved:`, value);
 }
 
 function onMessageChange(event) {
@@ -220,8 +231,6 @@ jQuery(async () => {
         $("#autochat-min-seconds").on("input", onMinSecondsChange);
         $("#autochat-max-seconds").on("input", onMaxSecondsChange);
         $("#autochat-repeats").on("input", onRepeatsChange);
-        // NEW: Bind throttle protection event
-        $("#autochat-throttle-protection").on("input", onThrottleProtectionChange);
         $("#autochat-message").on("input", onMessageChange);
         loadSettings();
         console.log(`[${extensionName}] ✅ Loaded successfully`);
