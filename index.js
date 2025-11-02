@@ -22,8 +22,9 @@ let timerInterval = null;
 let currentCountdown = 0;
 let lastCountdownDuration = 0;
 let messagesSent = 0;
-// Flag to detect the first run after a page load
 let isFirstRun = true;
+// NEW: Variable to track the timestamp of the last sent message
+let lastSentTimestamp = 0;
 
 // Function to load settings into the UI
 async function loadSettings() {
@@ -70,7 +71,6 @@ function onCheckboxChange(event) {
     if (value) {
         startTimer();
     } else {
-        // FIXED: Pass 'true' to indicate this is a manual stop
         stopTimer(true);
     }
 }
@@ -176,6 +176,8 @@ function sendMessage(message) {
         chatInput.val(message);
         $("#send_but").trigger('click');
         console.log(`[${extensionName}] Message sent to chat:`, message);
+        // NEW: Update the timestamp after a successful send
+        lastSentTimestamp = Date.now();
     } catch (error) {
         console.error(`[${extensionName}] Failed to send message:`, error);
     }
@@ -183,17 +185,15 @@ function sendMessage(message) {
 
 // Function to start the timer
 function startTimer() {
-    // FIXED: Do not reset the first run flag on automatic restarts
     stopTimer(false);
 
     const minTime = extension_settings[extensionName].minTime;
     const maxTime = extension_settings[extensionName].maxTime;
     const startupTime = extension_settings[extensionName].startupTime;
 
-    // Check if this is the first run after loading
     if (isFirstRun) {
         lastCountdownDuration = startupTime;
-        isFirstRun = false; // Set flag to false for subsequent runs
+        isFirstRun = false;
         console.log(`[${extensionName}] First run detected. Starting timer at startup time: ${lastCountdownDuration} seconds.`);
     } else {
         lastCountdownDuration = Math.floor(Math.random() * (maxTime - minTime + 1)) + minTime;
@@ -211,6 +211,20 @@ function startTimer() {
         if (currentCountdown <= 0) {
             console.log(`[${extensionName}] Timer finished!`);
             
+            // NEW: Throttle safety check
+            const isThrottleEnabled = extension_settings[extensionName].throttleSafety;
+            const timeSinceLastMessage = Date.now() - lastSentTimestamp;
+            const throttleLimit = 120 * 1000; // 2 minutes in milliseconds
+
+            if (isThrottleEnabled && timeSinceLastMessage < throttleLimit) {
+                const timeToWait = Math.ceil((throttleLimit - timeSinceLastMessage) / 1000);
+                console.warn(`[${extensionName}] Throttle safety active. Last message sent ${Math.round(timeSinceLastMessage / 1000)}s ago. Skipping message and restarting timer. Next attempt in ~${timeToWait}s.`);
+                // Do not send the message, just restart the timer
+                startTimer();
+                return; // Exit the interval callback
+            }
+
+            // If throttle is off or enough time has passed, send the message
             const template = extension_settings[extensionName].messageTemplate;
             const processedMessage = template.replace(/{seconds}/g, lastCountdownDuration);
             
@@ -221,7 +235,6 @@ function startTimer() {
             const repeatCount = extension_settings[extensionName].repeatCount;
             if (repeatCount !== null && messagesSent >= repeatCount) {
                 console.log(`[${extensionName}] Repeat limit reached. Stopping timer.`);
-                // FIXED: Pass 'true' to indicate this is a manual stop
                 stopTimer(true);
                 messagesSent = 0;
                 $("#autochat_enabled").prop("checked", false);
@@ -234,7 +247,7 @@ function startTimer() {
     }, 1000);
 }
 
-// FIXED: Function to stop the timer
+// Function to stop the timer
 function stopTimer(isManualStop = false) {
     if (timerInterval) {
         clearInterval(timerInterval);
@@ -242,9 +255,10 @@ function stopTimer(isManualStop = false) {
         console.log(`[${extensionName}] Timer stopped.`);
         $("#autochat_timer_display").text("Timer: Stopped");
         messagesSent = 0;
-        // Only reset the first run flag if it was a manual stop
         if (isManualStop) {
             isFirstRun = true;
+            // NEW: Reset the last sent timestamp on manual stop
+            lastSentTimestamp = 0;
         }
     }
 }
