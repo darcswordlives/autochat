@@ -1,10 +1,10 @@
-// Import from SillyTavern core
-import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
+import { extension_settings } from "../../../extensions.js";
 import { saveSettingsDebounced, eventSource } from "../../../../script.js";
 
-// Extension name MUST match folder name
 const extensionName = "autochat";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
+
+let autochatTimerId = null;
 
 const defaultSettings = {
     enabled: false,
@@ -32,13 +32,26 @@ function onCheckboxChange(event) {
 
     if (value) {
         startAutochatTimer();
+    } else {
+        stopAutochatTimer();
+    }
+}
+
+function stopAutochatTimer() {
+    if (autochatTimerId) {
+        clearTimeout(autochatTimerId);
+        autochatTimerId = null;
+        console.log(`[${extensionName}] Timer stopped.`);
+        toastr.info("Autochat timer stopped.");
     }
 }
 
 function startAutochatTimer() {
+    if (autochatTimerId) {
+        clearTimeout(autochatTimerId);
+    }
     const minSec = extension_settings[extensionName].minSeconds;
     const maxSec = extension_settings[extensionName].maxSeconds;
-
     if (minSec >= maxSec) {
         toastr.error("Minimum seconds must be less than Maximum seconds.");
         console.error(`[${extensionName}] Invalid range: min (${minSec}) >= max (${maxSec})`);
@@ -47,21 +60,36 @@ function startAutochatTimer() {
         saveSettingsDebounced();
         return;
     }
-
     const randomSeconds = Math.floor(Math.random() * (maxSec - minSec + 1)) + minSec;
-
     console.log(`[${extensionName}] Timer started for ${randomSeconds} seconds.`);
     toastr.info(`Timer started for ${randomSeconds} seconds.`);
 
-    setTimeout(() => {
+    autochatTimerId = setTimeout(() => {
         const message = extension_settings[extensionName].message;
-        console.log(`[${extensionName}] Timer ended! Sending message:`, message);
+        console.log(`[${extensionName}] Timer ended! Sending message via prompt:`, message);
         toastr.success("Message sent!");
 
         if (message) {
-            eventSource.emit('userMessageString', message);
+            // Place the message in the user's prompt box and send it
+            const $sendTextarea = $("#send_textarea");
+            const $sendButton = $("#send_but");
+
+            if ($sendTextarea.length > 0 && $sendButton.length > 0) {
+                $sendTextarea.val(message);
+                // Trigger an 'input' event to ensure SillyTavern registers the change
+                $sendTextarea.trigger('input');
+                // Programmatically click the send button
+                $sendButton.trigger('click');
+            } else {
+                console.error(`[${extensionName}] Could not find send textarea or button.`);
+            }
         } else {
-            console.warn(`[${extensionName}] Timer ended, but the message was empty. Nothing was sent.`);
+            console.warn(`[${extensionName}] Timer ended, but the message was empty.`);
+        }
+
+        if (extension_settings[extensionName].enabled) {
+            console.log(`[${extensionName}] Restarting timer...`);
+            startAutochatTimer();
         }
     }, randomSeconds * 1000);
 }
@@ -71,47 +99,31 @@ function onMinSecondsChange(event) {
     if (!isNaN(value) && value > 0) {
         extension_settings[extensionName].minSeconds = value;
         saveSettingsDebounced();
-        console.log(`[${extensionName}] Min seconds saved:`, value);
-    } else {
-        console.warn(`[${extensionName}] Invalid value for min seconds:`, $(event.target).val());
     }
 }
-
 function onMaxSecondsChange(event) {
     const value = parseInt($(event.target).val(), 10);
     if (!isNaN(value) && value > 0) {
         extension_settings[extensionName].maxSeconds = value;
         saveSettingsDebounced();
-        console.log(`[${extensionName}] Max seconds saved:`, value);
-    } else {
-        console.warn(`[${extensionName}] Invalid value for max seconds:`, $(event.target).val());
     }
 }
-
 function onMessageChange(event) {
     const value = $(event.target).val();
     extension_settings[extensionName].message = value;
     saveSettingsDebounced();
-    console.log(`[${extensionName}] Message saved:`, value);
 }
 
-// Extension initialization
 jQuery(async () => {
     console.log(`[${extensionName}] Loading...`);
-   
     try {
         const settingsHtml = await $.get(`${extensionFolderPath}/example.html`);
-       
-        // CHANGED: Append to the left panel (#extensions_settings) instead of the right (#extensions_settings2)
-        $("#extensions_settings").append(settingsHtml);
-       
+        $("#extensions_settings2").append(settingsHtml);
         $("#autochat-enabled").on("input", onCheckboxChange);
         $("#autochat-min-seconds").on("input", onMinSecondsChange);
         $("#autochat-max-seconds").on("input", onMaxSecondsChange);
         $("#autochat-message").on("input", onMessageChange);
-       
         loadSettings();
-       
         console.log(`[${extensionName}] ✅ Loaded successfully`);
     } catch (error) {
         console.error(`[${extensionName}] ❌ Failed to load:`, error);
