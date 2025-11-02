@@ -23,6 +23,11 @@
                 <label for="autochat_repeat_count">Number of Repeats:</label>
                 <input id="autochat_repeat_count" type="number" min="1" placeholder="Infinite if blank" />
             </div>
+            <!-- NEW: Throttle Safety Checkbox -->
+            <div>
+                <input id="autochat_throttle_safety" type="checkbox" />
+                <label for="autochat_throttle_safety">Enable Throttle Safety (1 message / 2 min)</label>
+            </div>
             <div class="autochat-timer-display">
                 <span id="autochat_timer_display">Timer: Stopped</span>
             </div>
@@ -32,7 +37,6 @@
                 <textarea id="autochat_message_template" rows="4" placeholder="Enter the message template here. Use {seconds} to insert the countdown duration."></textarea>
                 <small>Use <code>{seconds}</code> to insert the number of seconds that just elapsed.</small>
             </div>
-            <!-- REMOVED: Test Button -->
         </div>
     </div>
 </div>
