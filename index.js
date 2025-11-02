@@ -11,7 +11,6 @@ const defaultSettings = {
     enabled: false,
     minTime: 5,
     maxTime: 10,
-    // UPDATED: Default startup timer duration is now 120 seconds
     startupTime: 120,
     messageTemplate: "It has been {seconds} seconds since the last message. Time for another one!\n\nWhat are your thoughts on this?",
     repeatCount: null,
@@ -45,7 +44,6 @@ async function loadSettings() {
         saveSettingsDebounced();
     }
 
-    // Validate startup time
     if (isNaN(extension_settings[extensionName].startupTime) || extension_settings[extensionName].startupTime <= 0) {
         console.warn(`[${extensionName}] Invalid startupTime detected. Defaulting to 120.`);
         extension_settings[extensionName].startupTime = 120;
@@ -72,7 +70,8 @@ function onCheckboxChange(event) {
     if (value) {
         startTimer();
     } else {
-        stopTimer();
+        // FIXED: Pass 'true' to indicate this is a manual stop
+        stopTimer(true);
     }
 }
 
@@ -184,7 +183,8 @@ function sendMessage(message) {
 
 // Function to start the timer
 function startTimer() {
-    stopTimer();
+    // FIXED: Do not reset the first run flag on automatic restarts
+    stopTimer(false);
 
     const minTime = extension_settings[extensionName].minTime;
     const maxTime = extension_settings[extensionName].maxTime;
@@ -221,7 +221,8 @@ function startTimer() {
             const repeatCount = extension_settings[extensionName].repeatCount;
             if (repeatCount !== null && messagesSent >= repeatCount) {
                 console.log(`[${extensionName}] Repeat limit reached. Stopping timer.`);
-                stopTimer();
+                // FIXED: Pass 'true' to indicate this is a manual stop
+                stopTimer(true);
                 messagesSent = 0;
                 $("#autochat_enabled").prop("checked", false);
                 extension_settings[extensionName].enabled = false;
@@ -233,16 +234,18 @@ function startTimer() {
     }, 1000);
 }
 
-// Function to stop the timer
-function stopTimer() {
+// FIXED: Function to stop the timer
+function stopTimer(isManualStop = false) {
     if (timerInterval) {
         clearInterval(timerInterval);
         timerInterval = null;
         console.log(`[${extensionName}] Timer stopped.`);
         $("#autochat_timer_display").text("Timer: Stopped");
         messagesSent = 0;
-        // Reset the first run flag when stopping manually
-        isFirstRun = true;
+        // Only reset the first run flag if it was a manual stop
+        if (isManualStop) {
+            isFirstRun = true;
+        }
     }
 }
 
