@@ -85,23 +85,16 @@ function onCheckboxChange(event) {
     }
 }
 
-// UPDATED: Event handler for minimum time input (with debugging)
+// Event handler for minimum time input
 function onMinTimeChange(event) {
     let newMinTime = Number($(event.target).val());
     let currentMaxTime = extension_settings[extensionName].maxTime;
     const isThrottleEnabled = extension_settings[extensionName].throttleSafety;
 
-    // NEW: Debugging logs
-    console.log(`[${extensionName}] [DEBUG] onMinTimeChange triggered.`);
-    console.log(`[${extensionName}] [DEBUG] Value from input: ${$(event.target).val()}`);
-    console.log(`[${extensionName}] [DEBUG] Parsed newMinTime: ${newMinTime}`);
-    console.log(`[${extensionName}] [DEBUG] isThrottleEnabled: ${isThrottleEnabled}`);
-
     if (isThrottleEnabled && newMinTime < 120) {
         console.warn(`[${extensionName}] Throttle safety is enabled. Minimum time cannot be less than 120 seconds. Setting to 120.`);
         newMinTime = 120;
         $("#autochat_min_time").val(newMinTime);
-        console.log(`[${extensionName}] [DEBUG] Corrected newMinTime to: ${newMinTime}`);
     }
 
     if (newMinTime > currentMaxTime) {
@@ -116,11 +109,12 @@ function onMinTimeChange(event) {
     console.log(`[${extensionName}] Times saved - Min: ${newMinTime}, Max: ${currentMaxTime}`);
 }
 
-// Event handler for maximum time input
+// UPDATED: Event handler for maximum time input
 function onMaxTimeChange(event) {
     let inputVal = $(event.target).val();
     let newMaxTime;
     let currentMinTime = extension_settings[extensionName].minTime;
+    const isThrottleEnabled = extension_settings[extensionName].throttleSafety;
 
     if (inputVal === "" || isNaN(Number(inputVal))) {
         console.warn(`[${extensionName}] Maximum time is blank or invalid. Defaulting to 3600.`);
@@ -130,6 +124,14 @@ function onMaxTimeChange(event) {
         newMaxTime = Number(inputVal);
     }
 
+    // NEW: If throttle is enabled, enforce minimum of 120 seconds on max time
+    if (isThrottleEnabled && newMaxTime < 120) {
+        console.warn(`[${extensionName}] Throttle safety is enabled. Maximum time cannot be less than 120 seconds. Setting to 120.`);
+        newMaxTime = 120;
+        $("#autochat_max_time").val(newMaxTime);
+    }
+
+    // Now, perform the min/max validation
     if (newMaxTime < currentMinTime) {
         console.warn(`[${extensionName}] Maximum time cannot be less than minimum time. Adjusting min time.`);
         currentMinTime = newMaxTime;
@@ -216,6 +218,7 @@ function onThrottleSafetyChange(event) {
         }
         
         if (extension_settings[extensionName].maxTime < 120) {
+            console.warn(`[${extensionName}] Setting maximum time to 120 seconds.`);
             extension_settings[extensionName].maxTime = 120;
             $("#autochat_max_time").val(120);
             needsSave = true;
