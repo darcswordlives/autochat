@@ -25,26 +25,9 @@
                 <input id="autochat-max-seconds" type="number" min="1" class="text_pole" />
                 <small>(default value of 3600 seconds if left blank)</small>
             </div>
-            <hr>
-            <div class="margin-top-10">
-                <b>Send message as:</b>
-                <div>
-                    <input type="radio" name="autochat-sender-choice" id="autochat-sender-user" value="user" checked>
-                    <label for="autochat-sender-user">{{user}}</label>
-                </div>
-                <div>
-                    <input type="radio" name="autochat-sender-choice" id="autochat-sender-char" value="char">
-                    <label for="autochat-sender-char">{{char}}</label>
-                </div>
-            </div>
-            <hr>
             <div class="margin-top-10">
                 <label for="autochat-message">{{User}} generated message:</label>
                 <textarea id="autochat-message" class="text_pole" rows="4" placeholder="Use {seconds} for the random time"></textarea>
-            </div>
-            <div class="margin-top-10">
-                <label for="autochat-char-message">{{Char}} generated message:</label>
-                <textarea id="autochat-char-message" class="text_pole" rows="4" placeholder="Use {seconds} for the random time"></textarea>
             </div>
             <hr>
             <div>
