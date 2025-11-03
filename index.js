@@ -23,7 +23,6 @@ let currentCountdown = 0;
 let lastCountdownDuration = 0;
 let messagesSent = 0;
 let isFirstRun = true;
-// NEW: Variable to store the timestamp when the timer started
 let timerStartTime = 0;
 
 // Function to load settings into the UI
@@ -87,7 +86,7 @@ function onCheckboxChange(event) {
     }
 }
 
-// Event handler for minimum time input
+// UPDATED: Event handler for minimum time input (now using 'change' event)
 function onMinTimeChange(event) {
     let newMinTime = Number($(event.target).val());
     let currentMaxTime = extension_settings[extensionName].maxTime;
@@ -111,7 +110,7 @@ function onMinTimeChange(event) {
     console.log(`[${extensionName}] Times saved - Min: ${newMinTime}, Max: ${currentMaxTime}`);
 }
 
-// Event handler for maximum time input
+// UPDATED: Event handler for maximum time input (now using 'change' event)
 function onMaxTimeChange(event) {
     let inputVal = $(event.target).val();
     let newMaxTime;
@@ -144,7 +143,7 @@ function onMaxTimeChange(event) {
     console.log(`[${extensionName}] Times saved - Min: ${currentMinTime}, Max: ${newMaxTime}`);
 }
 
-// Event handler for startup time input
+// UPDATED: Event handler for startup time input (now using 'change' event)
 function onStartupTimeChange(event) {
     let inputVal = $(event.target).val();
     let newStartupTime;
@@ -177,7 +176,7 @@ function onMessageTemplateChange(event) {
     console.log(`[${extensionName}] Message template saved.`);
 }
 
-// Event handler for repeat count input
+// UPDATED: Event handler for repeat count input (now using 'change' event)
 function onRepeatCountChange(event) {
     let inputVal = $(event.target).val();
     let newRepeatCount;
@@ -244,7 +243,7 @@ function sendMessage(message) {
     }
 }
 
-// UPDATED: Function to start the timer
+// Function to start the timer
 function startTimer() {
     stopTimer(false);
 
@@ -261,11 +260,9 @@ function startTimer() {
         console.log(`[${extensionName}] Subsequent run. Starting timer at random time: ${lastCountdownDuration} seconds.`);
     }
     
-    // NEW: Record the start time using a high-resolution timestamp
     timerStartTime = performance.now();
 
     timerInterval = setInterval(() => {
-        // NEW: Calculate the elapsed time and the remaining countdown
         const elapsedTime = (performance.now() - timerStartTime) / 1000;
         currentCountdown = Math.max(0, Math.ceil(lastCountdownDuration - elapsedTime));
 
@@ -293,10 +290,10 @@ function startTimer() {
                 startTimer();
             }
         }
-    }, 250); // Update the display more frequently for smoother catch-up
+    }, 250);
 }
 
-// UPDATED: Function to stop the timer
+// Function to stop the timer
 function stopTimer(isManualStop = false) {
     if (timerInterval) {
         clearInterval(timerInterval);
@@ -307,7 +304,6 @@ function stopTimer(isManualStop = false) {
         if (isManualStop) {
             isFirstRun = true;
         }
-        // NEW: Reset the start time
         timerStartTime = 0;
     }
 }
@@ -321,11 +317,12 @@ jQuery(async () => {
         $("#extensions_settings2").append(settingsHtml);
        
         $("#autochat_enabled").on("input", onCheckboxChange);
-        $("#autochat_min_time").on("input", onMinTimeChange);
-        $("#autochat_max_time").on("input", onMaxTimeChange);
-        $("#autochat_startup_time").on("input", onStartupTimeChange);
+        // UPDATED: Changed 'input' to 'change' for number fields
+        $("#autochat_min_time").on("change", onMinTimeChange);
+        $("#autochat_max_time").on("change", onMaxTimeChange);
+        $("#autochat_startup_time").on("change", onStartupTimeChange);
         $("#autochat_message_template").on("input", onMessageTemplateChange);
-        $("#autochat_repeat_count").on("input", onRepeatCountChange);
+        $("#autochat_repeat_count").on("change", onRepeatCountChange);
         $("#autochat_throttle_safety").on("input", onThrottleSafetyChange);
        
         loadSettings();
