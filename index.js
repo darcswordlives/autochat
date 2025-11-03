@@ -274,7 +274,7 @@ function sendMessage(message) {
     }
 }
 
-// UPDATED: Function to send an impersonated message (with correct button ID)
+// UPDATED: Function to send an impersonated message (with direct send button click)
 function sendImpersonatedMessage() {
     try {
         if (document.hidden) {
@@ -282,34 +282,32 @@ function sendImpersonatedMessage() {
         }
 
         console.log(`[${extensionName}] [DEBUG] Starting impersonation process...`);
-        // UPDATED: Use the correct ID for the impersonation button
         const impersonateButton = document.getElementById('mes_impersonate');
         const chatInput = $("#send_textarea");
+        const sendButton = $("#send_but");
 
         if (!impersonateButton) {
             console.error(`[${extensionName}] [DEBUG] FAILURE: Could not find the impersonate button with ID 'mes_impersonate'.`);
             return;
         }
-        console.log(`[${extensionName}] [DEBUG] SUCCESS: Found impersonate button.`, impersonateButton);
         if (chatInput.length === 0) {
             console.error(`[${extensionName}] [DEBUG] FAILURE: Could not find the chat input textarea.`);
             return;
         }
-        console.log(`[${extensionName}] [DEBUG] SUCCESS: Found chat input.`, chatInput[0]);
+        if (sendButton.length === 0) {
+            console.error(`[${extensionName}] [DEBUG] FAILURE: Could not find the send button.`);
+            return;
+        }
 
         chatInput.val("");
-        console.log(`[${extensionName}] [DEBUG] Cleared chat input. Current value:`, chatInput.val());
+        console.log(`[${extensionName}] [DEBUG] Cleared chat input.`);
 
-        // Method 1: Try calling the global function directly
         if (typeof doImpersonation === 'function') {
-            console.log(`[${extensionName}] [DEBUG] Attempting to call global doImpersonation() function...`);
+            console.log(`[${extensionName}] [DEBUG] Calling doImpersonation() function...`);
             doImpersonation();
-            console.log(`[${extensionName}] [DEBUG] doImpersonation() function called.`);
         } else {
             console.warn(`[${extensionName}] [DEBUG] doImpersonation() function not found. Will try button click.`);
-            // Method 2: Fallback to clicking the button
             impersonateButton.click();
-            console.log(`[${extensionName}] [DEBUG] Attempted native .click() on the button.`);
         }
 
         const timeoutMs = 30000;
@@ -323,8 +321,9 @@ function sendImpersonatedMessage() {
 
             if (messageText && messageText.trim() !== "") {
                 clearInterval(checkInterval);
-                console.log(`[${extensionName}] AI generated text. Sending message:`, messageText);
-                sendMessage(messageText);
+                console.log(`[${extensionName}] AI generated text. Triggering send button click.`);
+                // UPDATED: Just click the send button directly
+                sendButton.trigger('click');
             } else if (elapsedTime > timeoutMs) {
                 clearInterval(checkInterval);
                 console.warn(`[${extensionName}] Timed out waiting for AI to generate text after ${timeoutMs / 1000} seconds.`);
