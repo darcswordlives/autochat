@@ -15,9 +15,8 @@ const defaultSettings = {
     messageTemplate: "It has been {seconds} seconds since the last message. Time for another one!\n\nWhat are your thoughts on this?",
     repeatCount: null,
     throttleSafety: true,
-    useImpersonation: false,
-    // NEW: Default impersonation prompt
-    impersonationPrompt: "Continue the conversation as the character, responding to the last message."
+    useImpersonation: false
+    // REMOVED: impersonationPrompt setting
 };
 
 // Timer variables
@@ -70,17 +69,12 @@ async function loadSettings() {
     $("#autochat_max_time").val(extension_settings[extensionName].maxTime);
     $("#autochat_startup_time").val(extension_settings[extensionName].startupTime);
     $("#autochat_message_template").val(extension_settings[extensionName].messageTemplate);
-    // NEW: Load impersonation prompt
-    $("#autochat_impersonation_prompt").val(extension_settings[extensionName].impersonationPrompt);
+    // REMOVED: Loading impersonation prompt
     const repeatCount = extension_settings[extensionName].repeatCount;
     $("#autochat_repeat_count").val(repeatCount === null ? "" : repeatCount);
     $("#autochat_throttle_safety").prop("checked", extension_settings[extensionName].throttleSafety);
     $("#autochat_use_impersonation").prop("checked", extension_settings[extensionName].useImpersonation);
-    
-    // Enable/disable the correct textareas based on the impersonation setting
-    const useImpersonation = extension_settings[extensionName].useImpersonation;
-    $("#autochat_message_template").prop("disabled", useImpersonation);
-    $("#autochat_impersonation_prompt").prop("disabled", !useImpersonation);
+    $("#autochat_message_template").prop("disabled", extension_settings[extensionName].useImpersonation);
 }
 
 // Event handler for the checkbox
@@ -187,13 +181,7 @@ function onMessageTemplateChange(event) {
     console.log(`[${extensionName}] Message template saved.`);
 }
 
-// NEW: Event handler for impersonation prompt textarea
-function onImpersonationPromptChange(event) {
-    const value = $(event.target).val();
-    extension_settings[extensionName].impersonationPrompt = value;
-    saveSettingsDebounced();
-    console.log(`[${extensionName}] Impersonation prompt saved.`);
-}
+// REMOVED: Event handler for impersonation prompt textarea
 
 // Event handler for repeat count input
 function onRepeatCountChange(event) {
@@ -257,9 +245,8 @@ function onImpersonationChange(event) {
     saveSettingsDebounced();
     console.log(`[${extensionName}] Impersonation setting saved:`, value);
 
-    // Enable/disable the correct textareas
+    // Only enable/disable the message template
     $("#autochat_message_template").prop("disabled", value);
-    $("#autochat_impersonation_prompt").prop("disabled", !value);
 }
 
 // Simplified function to send a message to the chat
@@ -277,13 +264,38 @@ function sendMessage(message) {
 // UPDATED: Function to send an impersonated message
 function sendImpersonatedMessage() {
     try {
-        const prompt = extension_settings[extensionName].impersonationPrompt;
-        if (prompt && prompt.trim() !== "") {
-            console.log(`[${extensionName}] Sending impersonation prompt as user message:`, prompt);
-            sendMessage(prompt);
-        } else {
-            console.warn(`[${extensionName}] Impersonation prompt is empty. Skipping.`);
-        }
+        console.log(`[${extensionName}] Triggering impersonation...`);
+        const chatInput = $("#send_textarea");
+        
+        // Clear any existing text to ensure we can detect the new text
+        chatInput.val("");
+        
+        // Set up a MutationObserver to wait for the text to appear
+        const observer = new MutationObserver((mutationsList, observer) => {
+            for (const mutation of mutationsList) {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'value') {
+                    const newText = chatInput.val();
+                    if (newText && newText.trim() !== "") {
+                        console.log(`[${extensionName}] Impersonation text received. Sending as user message:`, newText);
+                        observer.disconnect(); // Stop observing
+                        sendMessage(newText);
+                    }
+                }
+            }
+        });
+
+        // Start observing the textarea for changes
+        observer.observe(chatInput, { attributes: true, attributeFilter: ['value'] });
+        
+        // Click the impersonate button to trigger the AI generation
+        $("#impersonate_button").trigger('click');
+        
+        // Set a timeout to disconnect the observer if no text is generated after a while
+        setTimeout(() => {
+            observer.disconnect();
+            console.warn(`[${extensionName}] Impersonation timed out. No text was generated.`);
+        }, 10000); // 10 second timeout
+
     } catch (error) {
         console.error(`[${extensionName}] Failed to send impersonated message:`, error);
     }
@@ -372,8 +384,7 @@ jQuery(async () => {
         $("#autochat_max_time").on("change", onMaxTimeChange);
         $("#autochat_startup_time").on("change", onStartupTimeChange);
         $("#autochat_message_template").on("input", onMessageTemplateChange);
-        // NEW: Bind impersonation prompt event
-        $("#autochat_impersonation_prompt").on("input", onImpersonationPromptChange);
+        // REMOVED: Binding impersonation prompt event
         $("#autochat_repeat_count").on("change", onRepeatCountChange);
         $("#autochat_throttle_safety").on("input", onThrottleSafetyChange);
         $("#autochat_use_impersonation").on("input", onImpersonationChange);
