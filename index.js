@@ -274,34 +274,70 @@ function sendMessage(message) {
     }
 }
 
-// UPDATED: Async function to get and send an impersonated message
-async function sendImpersonatedMessage() {
+// UPDATED: Function to send an impersonated message (with aggressive UI trigger)
+function sendImpersonatedMessage() {
     try {
         if (document.hidden) {
             console.warn(`[${extensionName}] WARNING: The page is not active. Impersonation may fail or be heavily delayed. Please keep the SillyTavern tab active.`);
         }
 
-        console.log(`[${extensionName}] Attempting to get impersonated text via function call...`);
+        console.log(`[${extensionName}] [DEBUG] Starting aggressive impersonation trigger...`);
+        const chatInput = $("#send_textarea");
+        const sendButton = $("#send_but");
 
-        // Check if the doImpersonation function exists
-        if (typeof doImpersonation !== 'function') {
-            console.error(`[${extensionName}] FAILURE: doImpersonation function not found.`);
+        if (chatInput.length === 0) {
+            console.error(`[${extensionName}] [DEBUG] FAILURE: Could not find the chat input textarea.`);
             return;
         }
 
-        // Call the function and await the result
-        const impersonatedText = await doImpersonation();
+        chatInput.val("");
+        console.log(`[${extensionName}] [DEBUG] Cleared chat input.`);
 
-        if (impersonatedText && impersonatedText.trim() !== "") {
-            console.log(`[${extensionName}] Received impersonated text. Sending message:`, impersonatedText);
-            // Use our reliable sendMessage function
-            sendMessage(impersonatedText);
-        } else {
-            console.warn(`[${extensionName}] Received empty or invalid text from impersonation. Skipping.`);
+        // Find all potential impersonation buttons
+        const impersonationButtons = $('[id*="impersonate"], [class*="impersonate"]');
+        console.log(`[${extensionName}] [DEBUG] Found ${impersonationButtons.length} potential impersonation elements.`, impersonationButtons);
+
+        // Helper function to trigger a robust click event
+        function triggerClick(element) {
+            console.log(`[${extensionName}] [DEBUG] Triggering click on element:`, element);
+            const event = new MouseEvent('click', {
+                view: window,
+                bubbles: true,
+                cancelable: true,
+                buttons: 1
+            });
+            element.dispatchEvent(event);
         }
 
+        // Try clicking each one
+        impersonationButtons.each((index, element) => {
+            // Use a small delay to avoid overwhelming the UI
+            setTimeout(() => {
+                triggerClick(element);
+            }, index * 100); // 100ms delay between clicks
+        });
+
+        const timeoutMs = 30000;
+        const startTime = Date.now();
+        
+        const checkInterval = setInterval(() => {
+            const elapsedTime = Date.now() - startTime;
+            const messageText = chatInput.val();
+
+            console.log(`[${extensionName}] [DEBUG] Polling... Elapsed: ${Math.round(elapsedTime/1000)}s, Text found: ${messageText ? 'Yes' : 'No'}`);
+
+            if (messageText && messageText.trim() !== "") {
+                clearInterval(checkInterval);
+                console.log(`[${extensionName}] AI generated text. Triggering send button click.`);
+                sendButton.trigger('click');
+            } else if (elapsedTime > timeoutMs) {
+                clearInterval(checkInterval);
+                console.warn(`[${extensionName}] Timed out waiting for AI to generate text after ${timeoutMs / 1000} seconds.`);
+            }
+        }, 1000);
+
     } catch (error) {
-        console.error(`[${extensionName}] Failed to get or send impersonated message:`, error);
+        console.error(`[${extensionName}] Failed to send impersonated message:`, error);
     }
 }
 
@@ -324,8 +360,7 @@ function startTimer() {
     
     timerStartTime = performance.now();
 
-    // UPDATED: Make the interval callback async
-    timerInterval = setInterval(async () => {
+    timerInterval = setInterval(() => {
         const elapsedTime = (performance.now() - timerStartTime) / 1000;
         currentCountdown = Math.max(0, Math.ceil(lastCountdownDuration - elapsedTime));
 
@@ -337,8 +372,7 @@ function startTimer() {
             const useImpersonation = extension_settings[extensionName].useImpersonation;
 
             if (useImpersonation) {
-                // Await the impersonation process
-                await sendImpersonatedMessage();
+                sendImpersonatedMessage();
             } else {
                 const template = extension_settings[extensionName].messageTemplate;
                 const processedMessage = template.replace(/{seconds}/g, lastCountdownDuration);
