@@ -274,16 +274,15 @@ function sendMessage(message) {
     }
 }
 
-// UPDATED: Function to send an impersonated message (with aggressive UI trigger)
+// UPDATED: Function to send an impersonated message (using reliable sendMessage)
 function sendImpersonatedMessage() {
     try {
         if (document.hidden) {
             console.warn(`[${extensionName}] WARNING: The page is not active. Impersonation may fail or be heavily delayed. Please keep the SillyTavern tab active.`);
         }
 
-        console.log(`[${extensionName}] [DEBUG] Starting aggressive impersonation trigger...`);
+        console.log(`[${extensionName}] [DEBUG] Starting precise impersonation trigger...`);
         const chatInput = $("#send_textarea");
-        const sendButton = $("#send_but");
 
         if (chatInput.length === 0) {
             console.error(`[${extensionName}] [DEBUG] FAILURE: Could not find the chat input textarea.`);
@@ -293,29 +292,25 @@ function sendImpersonatedMessage() {
         chatInput.val("");
         console.log(`[${extensionName}] [DEBUG] Cleared chat input.`);
 
-        // Find all potential impersonation buttons
-        const impersonationButtons = $('[id*="impersonate"], [class*="impersonate"]');
-        console.log(`[${extensionName}] [DEBUG] Found ${impersonationButtons.length} potential impersonation elements.`, impersonationButtons);
-
-        // Helper function to trigger a robust click event
-        function triggerClick(element) {
-            console.log(`[${extensionName}] [DEBUG] Triggering click on element:`, element);
-            const event = new MouseEvent('click', {
-                view: window,
-                bubbles: true,
-                cancelable: true,
-                buttons: 1
-            });
-            element.dispatchEvent(event);
+        const impersonateButton = document.getElementById('mes_impersonate');
+        if (!impersonateButton) {
+            console.error(`[${extensionName}] [DEBUG] FAILURE: Could not find the impersonate button with ID 'mes_impersonate'.`);
+            return;
         }
+        
+        console.log(`[${extensionName}] [DEBUG] Found impersonate button. Attempting to focus and click.`);
+        
+        impersonateButton.focus();
 
-        // Try clicking each one
-        impersonationButtons.each((index, element) => {
-            // Use a small delay to avoid overwhelming the UI
-            setTimeout(() => {
-                triggerClick(element);
-            }, index * 100); // 100ms delay between clicks
-        });
+        const mousedownEvent = new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window });
+        const mouseupEvent = new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window });
+        const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true, view: window });
+
+        impersonateButton.dispatchEvent(mousedownEvent);
+        impersonateButton.dispatchEvent(mouseupEvent);
+        impersonateButton.dispatchEvent(clickEvent);
+
+        console.log(`[${extensionName}] [DEBUG] Dispatched mousedown, mouseup, and click events.`);
 
         const timeoutMs = 30000;
         const startTime = Date.now();
@@ -328,8 +323,9 @@ function sendImpersonatedMessage() {
 
             if (messageText && messageText.trim() !== "") {
                 clearInterval(checkInterval);
-                console.log(`[${extensionName}] AI generated text. Triggering send button click.`);
-                sendButton.trigger('click');
+                console.log(`[${extensionName}] AI generated text. Sending via reliable sendMessage function.`);
+                // UPDATED: Use the reliable sendMessage function instead of a direct click
+                sendMessage(messageText);
             } else if (elapsedTime > timeoutMs) {
                 clearInterval(checkInterval);
                 console.warn(`[${extensionName}] Timed out waiting for AI to generate text after ${timeoutMs / 1000} seconds.`);
