@@ -259,30 +259,37 @@ function sendMessage(message) {
 // UPDATED: Function to send an impersonated message
 function sendImpersonatedMessage() {
     try {
-        console.log(`[${extensionName}] Triggering impersonation...`);
-        const impersonateButton = $("#impersonate_button");
+        console.log(`[${extensionName}] Calling doImpersonation() function...`);
         const chatInput = $("#send_textarea");
         const sendButton = $("#send_but");
 
-        if (impersonateButton.length === 0 || chatInput.length === 0 || sendButton.length === 0) {
-            console.error(`[${extensionName}] Could not find one of the required buttons or input fields.`);
+        if (chatInput.length === 0 || sendButton.length === 0) {
+            console.error(`[${extensionName}] Could not find the chat input or send button.`);
             return;
         }
 
-        // Clear any existing text to know when the new text arrives
+        // Clear any existing text
         chatInput.val("");
 
-        // Click the "Ask AI" button
-        impersonateButton.trigger('click');
+        // UPDATED: Call the global function directly
+        if (typeof doImpersonation === 'function') {
+            doImpersonation();
+        } else {
+            console.error(`[${extensionName}] doImpersonation function not found.`);
+            return;
+        }
 
-        // Set a timeout to wait for the AI to generate text
-        const timeoutMs = 15000; // 15 seconds
+        // Set a longer timeout to wait for the AI to generate text
+        const timeoutMs = 30000; // 30 seconds
         const startTime = Date.now();
         
-        // Poll the input field every 500ms to check for text
+        // Poll the input field every 1 second to check for text
         const checkInterval = setInterval(() => {
             const elapsedTime = Date.now() - startTime;
             const messageText = chatInput.val();
+
+            // NEW: Log the current state for debugging
+            console.log(`[${extensionName}] [DEBUG] Checking for text... Elapsed: ${Math.round(elapsedTime/1000)}s, Text found: ${messageText ? 'Yes' : 'No'}`);
 
             if (messageText && messageText.trim() !== "") {
                 // Text has arrived, clear the interval and send the message
@@ -294,7 +301,7 @@ function sendImpersonatedMessage() {
                 clearInterval(checkInterval);
                 console.warn(`[${extensionName}] Timed out waiting for AI to generate text after ${timeoutMs / 1000} seconds.`);
             }
-        }, 500); // Check every 500ms
+        }, 1000); // Check every 1 second
 
     } catch (error) {
         console.error(`[${extensionName}] Failed to send impersonated message:`, error);
