@@ -23,6 +23,8 @@ let currentCountdown = 0;
 let lastCountdownDuration = 0;
 let messagesSent = 0;
 let isFirstRun = true;
+// NEW: Variable to store the timestamp when the timer started
+let timerStartTime = 0;
 
 // Function to load settings into the UI
 async function loadSettings() {
@@ -109,7 +111,7 @@ function onMinTimeChange(event) {
     console.log(`[${extensionName}] Times saved - Min: ${newMinTime}, Max: ${currentMaxTime}`);
 }
 
-// UPDATED: Event handler for maximum time input
+// Event handler for maximum time input
 function onMaxTimeChange(event) {
     let inputVal = $(event.target).val();
     let newMaxTime;
@@ -124,14 +126,12 @@ function onMaxTimeChange(event) {
         newMaxTime = Number(inputVal);
     }
 
-    // NEW: If throttle is enabled, enforce minimum of 120 seconds on max time
     if (isThrottleEnabled && newMaxTime < 120) {
         console.warn(`[${extensionName}] Throttle safety is enabled. Maximum time cannot be less than 120 seconds. Setting to 120.`);
         newMaxTime = 120;
         $("#autochat_max_time").val(newMaxTime);
     }
 
-    // Now, perform the min/max validation
     if (newMaxTime < currentMinTime) {
         console.warn(`[${extensionName}] Maximum time cannot be less than minimum time. Adjusting min time.`);
         currentMinTime = newMaxTime;
@@ -244,7 +244,7 @@ function sendMessage(message) {
     }
 }
 
-// Function to start the timer
+// UPDATED: Function to start the timer
 function startTimer() {
     stopTimer(false);
 
@@ -261,12 +261,14 @@ function startTimer() {
         console.log(`[${extensionName}] Subsequent run. Starting timer at random time: ${lastCountdownDuration} seconds.`);
     }
     
-    currentCountdown = lastCountdownDuration;
-
-    $("#autochat_timer_display").text(`Timer: ${currentCountdown}s`);
+    // NEW: Record the start time using a high-resolution timestamp
+    timerStartTime = performance.now();
 
     timerInterval = setInterval(() => {
-        currentCountdown--;
+        // NEW: Calculate the elapsed time and the remaining countdown
+        const elapsedTime = (performance.now() - timerStartTime) / 1000;
+        currentCountdown = Math.max(0, Math.ceil(lastCountdownDuration - elapsedTime));
+
         $("#autochat_timer_display").text(`Timer: ${currentCountdown}s`);
 
         if (currentCountdown <= 0) {
@@ -291,10 +293,10 @@ function startTimer() {
                 startTimer();
             }
         }
-    }, 1000);
+    }, 250); // Update the display more frequently for smoother catch-up
 }
 
-// Function to stop the timer
+// UPDATED: Function to stop the timer
 function stopTimer(isManualStop = false) {
     if (timerInterval) {
         clearInterval(timerInterval);
@@ -305,6 +307,8 @@ function stopTimer(isManualStop = false) {
         if (isManualStop) {
             isFirstRun = true;
         }
+        // NEW: Reset the start time
+        timerStartTime = 0;
     }
 }
 
