@@ -14,7 +14,9 @@ const defaultSettings = {
     startupTime: 120,
     messageTemplate: "It has been {seconds} seconds since the last message. Time for another one!\n\nWhat are your thoughts on this?",
     repeatCount: null,
-    throttleSafety: true
+    throttleSafety: true,
+    // NEW: Default state for impersonation
+    useImpersonation: false
 };
 
 // Timer variables
@@ -70,6 +72,10 @@ async function loadSettings() {
     const repeatCount = extension_settings[extensionName].repeatCount;
     $("#autochat_repeat_count").val(repeatCount === null ? "" : repeatCount);
     $("#autochat_throttle_safety").prop("checked", extension_settings[extensionName].throttleSafety);
+    // NEW: Load impersonation setting
+    $("#autochat_use_impersonation").prop("checked", extension_settings[extensionName].useImpersonation);
+    // NEW: Enable/disable the message template based on the impersonation setting
+    $("#autochat_message_template").prop("disabled", extension_settings[extensionName].useImpersonation);
 }
 
 // Event handler for the checkbox
@@ -86,7 +92,7 @@ function onCheckboxChange(event) {
     }
 }
 
-// UPDATED: Event handler for minimum time input (now using 'change' event)
+// Event handler for minimum time input
 function onMinTimeChange(event) {
     let newMinTime = Number($(event.target).val());
     let currentMaxTime = extension_settings[extensionName].maxTime;
@@ -110,7 +116,7 @@ function onMinTimeChange(event) {
     console.log(`[${extensionName}] Times saved - Min: ${newMinTime}, Max: ${currentMaxTime}`);
 }
 
-// UPDATED: Event handler for maximum time input (now using 'change' event)
+// Event handler for maximum time input
 function onMaxTimeChange(event) {
     let inputVal = $(event.target).val();
     let newMaxTime;
@@ -143,7 +149,7 @@ function onMaxTimeChange(event) {
     console.log(`[${extensionName}] Times saved - Min: ${currentMinTime}, Max: ${newMaxTime}`);
 }
 
-// UPDATED: Event handler for startup time input (now using 'change' event)
+// Event handler for startup time input
 function onStartupTimeChange(event) {
     let inputVal = $(event.target).val();
     let newStartupTime;
@@ -176,7 +182,7 @@ function onMessageTemplateChange(event) {
     console.log(`[${extensionName}] Message template saved.`);
 }
 
-// UPDATED: Event handler for repeat count input (now using 'change' event)
+// Event handler for repeat count input
 function onRepeatCountChange(event) {
     let inputVal = $(event.target).val();
     let newRepeatCount;
@@ -231,6 +237,17 @@ function onThrottleSafetyChange(event) {
     console.log(`[${extensionName}] Throttle safety setting saved:`, value);
 }
 
+// NEW: Event handler for impersonation checkbox
+function onImpersonationChange(event) {
+    const value = Boolean($(event.target).prop("checked"));
+    extension_settings[extensionName].useImpersonation = value;
+    saveSettingsDebounced();
+    console.log(`[${extensionName}] Impersonation setting saved:`, value);
+
+    // Enable or disable the message template textarea
+    $("#autochat_message_template").prop("disabled", value);
+}
+
 // Simplified function to send a message to the chat
 function sendMessage(message) {
     try {
@@ -271,6 +288,7 @@ function startTimer() {
         if (currentCountdown <= 0) {
             console.log(`[${extensionName}] Timer finished!`);
             
+            // For now, we keep the old logic. We will change this in the next step.
             const template = extension_settings[extensionName].messageTemplate;
             const processedMessage = template.replace(/{seconds}/g, lastCountdownDuration);
             
@@ -317,13 +335,14 @@ jQuery(async () => {
         $("#extensions_settings2").append(settingsHtml);
        
         $("#autochat_enabled").on("input", onCheckboxChange);
-        // UPDATED: Changed 'input' to 'change' for number fields
         $("#autochat_min_time").on("change", onMinTimeChange);
         $("#autochat_max_time").on("change", onMaxTimeChange);
         $("#autochat_startup_time").on("change", onStartupTimeChange);
         $("#autochat_message_template").on("input", onMessageTemplateChange);
         $("#autochat_repeat_count").on("change", onRepeatCountChange);
         $("#autochat_throttle_safety").on("input", onThrottleSafetyChange);
+        // NEW: Bind impersonation event
+        $("#autochat_use_impersonation").on("input", onImpersonationChange);
        
         loadSettings();
 
