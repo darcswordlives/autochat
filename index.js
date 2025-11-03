@@ -16,7 +16,6 @@ const defaultSettings = {
     repeatCount: null,
     throttleSafety: true,
     useImpersonation: false
-    // REMOVED: impersonationPrompt setting
 };
 
 // Timer variables
@@ -69,7 +68,6 @@ async function loadSettings() {
     $("#autochat_max_time").val(extension_settings[extensionName].maxTime);
     $("#autochat_startup_time").val(extension_settings[extensionName].startupTime);
     $("#autochat_message_template").val(extension_settings[extensionName].messageTemplate);
-    // REMOVED: Loading impersonation prompt
     const repeatCount = extension_settings[extensionName].repeatCount;
     $("#autochat_repeat_count").val(repeatCount === null ? "" : repeatCount);
     $("#autochat_throttle_safety").prop("checked", extension_settings[extensionName].throttleSafety);
@@ -181,8 +179,6 @@ function onMessageTemplateChange(event) {
     console.log(`[${extensionName}] Message template saved.`);
 }
 
-// REMOVED: Event handler for impersonation prompt textarea
-
 // Event handler for repeat count input
 function onRepeatCountChange(event) {
     let inputVal = $(event.target).val();
@@ -238,14 +234,13 @@ function onThrottleSafetyChange(event) {
     console.log(`[${extensionName}] Throttle safety setting saved:`, value);
 }
 
-// UPDATED: Event handler for impersonation checkbox
+// Event handler for impersonation checkbox
 function onImpersonationChange(event) {
     const value = Boolean($(event.target).prop("checked"));
     extension_settings[extensionName].useImpersonation = value;
     saveSettingsDebounced();
     console.log(`[${extensionName}] Impersonation setting saved:`, value);
 
-    // Only enable/disable the message template
     $("#autochat_message_template").prop("disabled", value);
 }
 
@@ -265,36 +260,41 @@ function sendMessage(message) {
 function sendImpersonatedMessage() {
     try {
         console.log(`[${extensionName}] Triggering impersonation...`);
+        const impersonateButton = $("#impersonate_button");
         const chatInput = $("#send_textarea");
-        
-        // Clear any existing text to ensure we can detect the new text
-        chatInput.val("");
-        
-        // Set up a MutationObserver to wait for the text to appear
-        const observer = new MutationObserver((mutationsList, observer) => {
-            for (const mutation of mutationsList) {
-                if (mutation.type === 'attributes' && mutation.attributeName === 'value') {
-                    const newText = chatInput.val();
-                    if (newText && newText.trim() !== "") {
-                        console.log(`[${extensionName}] Impersonation text received. Sending as user message:`, newText);
-                        observer.disconnect(); // Stop observing
-                        sendMessage(newText);
-                    }
-                }
-            }
-        });
+        const sendButton = $("#send_but");
 
-        // Start observing the textarea for changes
-        observer.observe(chatInput, { attributes: true, attributeFilter: ['value'] });
+        if (impersonateButton.length === 0 || chatInput.length === 0 || sendButton.length === 0) {
+            console.error(`[${extensionName}] Could not find one of the required buttons or input fields.`);
+            return;
+        }
+
+        // Clear any existing text to know when the new text arrives
+        chatInput.val("");
+
+        // Click the "Ask AI" button
+        impersonateButton.trigger('click');
+
+        // Set a timeout to wait for the AI to generate text
+        const timeoutMs = 15000; // 15 seconds
+        const startTime = Date.now();
         
-        // Click the impersonate button to trigger the AI generation
-        $("#impersonate_button").trigger('click');
-        
-        // Set a timeout to disconnect the observer if no text is generated after a while
-        setTimeout(() => {
-            observer.disconnect();
-            console.warn(`[${extensionName}] Impersonation timed out. No text was generated.`);
-        }, 10000); // 10 second timeout
+        // Poll the input field every 500ms to check for text
+        const checkInterval = setInterval(() => {
+            const elapsedTime = Date.now() - startTime;
+            const messageText = chatInput.val();
+
+            if (messageText && messageText.trim() !== "") {
+                // Text has arrived, clear the interval and send the message
+                clearInterval(checkInterval);
+                console.log(`[${extensionName}] AI generated text. Sending message:`, messageText);
+                sendButton.trigger('click');
+            } else if (elapsedTime > timeoutMs) {
+                // Timeout reached, clear the interval and log an error
+                clearInterval(checkInterval);
+                console.warn(`[${extensionName}] Timed out waiting for AI to generate text after ${timeoutMs / 1000} seconds.`);
+            }
+        }, 500); // Check every 500ms
 
     } catch (error) {
         console.error(`[${extensionName}] Failed to send impersonated message:`, error);
@@ -384,7 +384,6 @@ jQuery(async () => {
         $("#autochat_max_time").on("change", onMaxTimeChange);
         $("#autochat_startup_time").on("change", onStartupTimeChange);
         $("#autochat_message_template").on("input", onMessageTemplateChange);
-        // REMOVED: Binding impersonation prompt event
         $("#autochat_repeat_count").on("change", onRepeatCountChange);
         $("#autochat_throttle_safety").on("input", onThrottleSafetyChange);
         $("#autochat_use_impersonation").on("input", onImpersonationChange);
