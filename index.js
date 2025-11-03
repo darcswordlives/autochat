@@ -71,7 +71,7 @@ async function loadSettings() {
     const repeatCount = extension_settings[extensionName].repeatCount;
     $("#autochat_repeat_count").val(repeatCount === null ? "" : repeatCount);
     $("#autochat_throttle_safety").prop("checked", extension_settings[extensionName].throttleSafety);
-    $("#autochat_use_impersonation").prop("checked", extensionSettings[extensionName].useImpersonation);
+    $("#autochat_use_impersonation").prop("checked", extension_settings[extensionName].useImpersonation);
     $("#autochat_message_template").prop("disabled", extension_settings[extensionName].useImpersonation);
 }
 
@@ -244,55 +244,19 @@ function onImpersonationChange(event) {
     $("#autochat_message_template").prop("disabled", value);
 }
 
-// UPDATED: Function to send a message to the chat (with aggressive trigger)
+// REVERTED: Function to send a message to the chat (last known working state)
 function sendMessage(message) {
     try {
-        if (typeof appendMessage === 'function' && typeof saveChat === 'function' && typeof getMessageTimeStamp === 'function') {
-            const context = getContext();
-            const messageObject = {
-                name: context.name1,
-                is_user: true,
-                is_name: true,
-                send_date: getMessageTimeStamp(),
-                mes: message
-            };
-            context.chat.push(messageObject);
-            appendMessage(messageObject);
-            saveChat();
-            console.log(`[${extensionName}] Message sent via direct function call:`, message);
-            return;
-        }
-
-        console.warn(`[${extensionName}] Direct functions not available. Falling back to aggressive jQuery method.`);
         const chatInput = $("#send_textarea");
-        const sendButton = $("#send_but");
-
-        if (chatInput.length === 0 || sendButton.length === 0) {
-            console.error(`[${extensionName}] Could not find chat input or send button to send message.`);
-            return;
-        }
-
         chatInput.val(message);
-        sendButton.focus();
-
-        // Create and dispatch a comprehensive set of events
-        const events = [
-            new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Enter', code: 'Enter' }),
-            new KeyboardEvent('keyup', { bubbles: true, cancelable: true, key: 'Enter', code: 'Enter' }),
-            new MouseEvent('mousedown', { bubbles: true, cancelable: true }),
-            new MouseEvent('mouseup', { bubbles: true, cancelable: true }),
-            new MouseEvent('click', { bubbles: true, cancelable: true }),
-        ];
-
-        events.forEach(event => sendButton.dispatchEvent(event));
-        console.log(`[${extensionName}] Dispatched multiple events on send button.`);
-
+        $("#send_but").trigger('click');
+        console.log(`[${extensionName}] Message sent via jQuery trigger:`, message);
     } catch (error) {
         console.error(`[${extensionName}] Failed to send message:`, error);
     }
 }
 
-// UPDATED: Function to send an impersonated message (using aggressive sendMessage)
+// UPDATED: Function to send an impersonated message (with aggressive send trigger)
 function sendImpersonatedMessage() {
     try {
         if (document.hidden) {
@@ -341,9 +305,22 @@ function sendImpersonatedMessage() {
 
             if (messageText && messageText.trim() !== "") {
                 clearInterval(checkInterval);
-                console.log(`[${extensionName}] AI generated text. Sending via aggressive sendMessage function.`);
-                // Use the new aggressive sendMessage function
-                sendMessage(messageText);
+                console.log(`[${extensionName}] AI generated text. Triggering aggressive send button click.`);
+                
+                // NEW: Aggressive send button trigger
+                const sendButton = $("#send_but");
+                if (sendButton.length > 0) {
+                    sendButton.focus();
+                    const events = [
+                        new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Enter', code: 'Enter' }),
+                        new KeyboardEvent('keyup', { bubbles: true, cancelable: true, key: 'Enter', code: 'Enter' }),
+                        new MouseEvent('mousedown', { bubbles: true, cancelable: true }),
+                        new MouseEvent('mouseup', { bubbles: true, cancelable: true }),
+                        new MouseEvent('click', { bubbles: true, cancelable: true }),
+                    ];
+                    events.forEach(event => sendButton.dispatchEvent(event));
+                    console.log(`[${extensionName}] [DEBUG] Dispatched multiple events on send button.`);
+                }
             } else if (elapsedTime > timeoutMs) {
                 clearInterval(checkInterval);
                 console.warn(`[${extensionName}] Timed out waiting for AI to generate text after ${timeoutMs / 1000} seconds.`);
