@@ -33,16 +33,21 @@
                 <label for="autochat_throttle_safety">Enforce Minimum Time of 120s</label>
                 <small>When checked, prevents all timer minimums from being set below 120 seconds.</small>
             </div>
-            <!-- NEW: Impersonation Checkbox -->
             <div>
                 <input id="autochat_use_impersonation" type="checkbox" />
                 <label for="autochat_use_impersonation">Use Impersonation</label>
-                <small>When checked, sends an impersonated message instead of using the user template below.</small>
+                <small>When checked, sends the prompt below as a user message instead of the template.</small>
             </div>
             <div class="autochat-timer-display">
                 <span id="autochat_timer_display">Timer: Stopped</span>
             </div>
             <hr>
+            <!-- NEW: Impersonation Prompt Field -->
+            <div class="autochat-template-settings">
+                <label for="autochat_impersonation_prompt">Impersonation Prompt:</label>
+                <textarea id="autochat_impersonation_prompt" rows="4" placeholder="Enter the prompt to send as the user here."></textarea>
+                <small>This will be sent as a user message when "Use Impersonation" is checked.</small>
+            </div>
             <div class="autochat-template-settings">
                 <label for="autochat_message_template">{{user}} Message Template:</label>
                 <textarea id="autochat_message_template" rows="4" placeholder="Enter the message template here. Use {seconds} to insert the countdown duration."></textarea>
