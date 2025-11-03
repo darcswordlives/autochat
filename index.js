@@ -15,7 +15,6 @@ const defaultSettings = {
     messageTemplate: "It has been {seconds} seconds since the last message. Time for another one!\n\nWhat are your thoughts on this?",
     repeatCount: null,
     throttleSafety: true,
-    // NEW: Default state for impersonation
     useImpersonation: false
 };
 
@@ -72,9 +71,7 @@ async function loadSettings() {
     const repeatCount = extension_settings[extensionName].repeatCount;
     $("#autochat_repeat_count").val(repeatCount === null ? "" : repeatCount);
     $("#autochat_throttle_safety").prop("checked", extension_settings[extensionName].throttleSafety);
-    // NEW: Load impersonation setting
     $("#autochat_use_impersonation").prop("checked", extension_settings[extensionName].useImpersonation);
-    // NEW: Enable/disable the message template based on the impersonation setting
     $("#autochat_message_template").prop("disabled", extension_settings[extensionName].useImpersonation);
 }
 
@@ -237,14 +234,13 @@ function onThrottleSafetyChange(event) {
     console.log(`[${extensionName}] Throttle safety setting saved:`, value);
 }
 
-// NEW: Event handler for impersonation checkbox
+// Event handler for impersonation checkbox
 function onImpersonationChange(event) {
     const value = Boolean($(event.target).prop("checked"));
     extension_settings[extensionName].useImpersonation = value;
     saveSettingsDebounced();
     console.log(`[${extensionName}] Impersonation setting saved:`, value);
 
-    // Enable or disable the message template textarea
     $("#autochat_message_template").prop("disabled", value);
 }
 
@@ -260,7 +256,23 @@ function sendMessage(message) {
     }
 }
 
-// Function to start the timer
+// NEW: Function to send an impersonated message
+function sendImpersonatedMessage() {
+    try {
+        // Find and click the impersonate button
+        const impersonateButton = $("#impersonate_button");
+        if (impersonateButton.length > 0) {
+            impersonateButton.trigger('click');
+            console.log(`[${extensionName}] Impersonated message sent.`);
+        } else {
+            console.error(`[${extensionName}] Could not find the impersonate button (#impersonate_button).`);
+        }
+    } catch (error) {
+        console.error(`[${extensionName}] Failed to send impersonated message:`, error);
+    }
+}
+
+// UPDATED: Function to start the timer
 function startTimer() {
     stopTimer(false);
 
@@ -288,11 +300,16 @@ function startTimer() {
         if (currentCountdown <= 0) {
             console.log(`[${extensionName}] Timer finished!`);
             
-            // For now, we keep the old logic. We will change this in the next step.
-            const template = extension_settings[extensionName].messageTemplate;
-            const processedMessage = template.replace(/{seconds}/g, lastCountdownDuration);
-            
-            sendMessage(processedMessage);
+            // NEW: Check if we should use impersonation or the template
+            const useImpersonation = extension_settings[extensionName].useImpersonation;
+
+            if (useImpersonation) {
+                sendImpersonatedMessage();
+            } else {
+                const template = extension_settings[extensionName].messageTemplate;
+                const processedMessage = template.replace(/{seconds}/g, lastCountdownDuration);
+                sendMessage(processedMessage);
+            }
             
             messagesSent++;
             
@@ -341,7 +358,6 @@ jQuery(async () => {
         $("#autochat_message_template").on("input", onMessageTemplateChange);
         $("#autochat_repeat_count").on("change", onRepeatCountChange);
         $("#autochat_throttle_safety").on("input", onThrottleSafetyChange);
-        // NEW: Bind impersonation event
         $("#autochat_use_impersonation").on("input", onImpersonationChange);
        
         loadSettings();
