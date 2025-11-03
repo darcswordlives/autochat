@@ -274,64 +274,34 @@ function sendMessage(message) {
     }
 }
 
-// UPDATED: Function to send an impersonated message (with direct send button click)
-function sendImpersonatedMessage() {
+// UPDATED: Async function to get and send an impersonated message
+async function sendImpersonatedMessage() {
     try {
         if (document.hidden) {
             console.warn(`[${extensionName}] WARNING: The page is not active. Impersonation may fail or be heavily delayed. Please keep the SillyTavern tab active.`);
         }
 
-        console.log(`[${extensionName}] [DEBUG] Starting impersonation process...`);
-        const impersonateButton = document.getElementById('mes_impersonate');
-        const chatInput = $("#send_textarea");
-        const sendButton = $("#send_but");
+        console.log(`[${extensionName}] Attempting to get impersonated text via function call...`);
 
-        if (!impersonateButton) {
-            console.error(`[${extensionName}] [DEBUG] FAILURE: Could not find the impersonate button with ID 'mes_impersonate'.`);
-            return;
-        }
-        if (chatInput.length === 0) {
-            console.error(`[${extensionName}] [DEBUG] FAILURE: Could not find the chat input textarea.`);
-            return;
-        }
-        if (sendButton.length === 0) {
-            console.error(`[${extensionName}] [DEBUG] FAILURE: Could not find the send button.`);
+        // Check if the doImpersonation function exists
+        if (typeof doImpersonation !== 'function') {
+            console.error(`[${extensionName}] FAILURE: doImpersonation function not found.`);
             return;
         }
 
-        chatInput.val("");
-        console.log(`[${extensionName}] [DEBUG] Cleared chat input.`);
+        // Call the function and await the result
+        const impersonatedText = await doImpersonation();
 
-        if (typeof doImpersonation === 'function') {
-            console.log(`[${extensionName}] [DEBUG] Calling doImpersonation() function...`);
-            doImpersonation();
+        if (impersonatedText && impersonatedText.trim() !== "") {
+            console.log(`[${extensionName}] Received impersonated text. Sending message:`, impersonatedText);
+            // Use our reliable sendMessage function
+            sendMessage(impersonatedText);
         } else {
-            console.warn(`[${extensionName}] [DEBUG] doImpersonation() function not found. Will try button click.`);
-            impersonateButton.click();
+            console.warn(`[${extensionName}] Received empty or invalid text from impersonation. Skipping.`);
         }
-
-        const timeoutMs = 30000;
-        const startTime = Date.now();
-        
-        const checkInterval = setInterval(() => {
-            const elapsedTime = Date.now() - startTime;
-            const messageText = chatInput.val();
-
-            console.log(`[${extensionName}] [DEBUG] Polling... Elapsed: ${Math.round(elapsedTime/1000)}s, Text found: ${messageText ? 'Yes' : 'No'}`);
-
-            if (messageText && messageText.trim() !== "") {
-                clearInterval(checkInterval);
-                console.log(`[${extensionName}] AI generated text. Triggering send button click.`);
-                // UPDATED: Just click the send button directly
-                sendButton.trigger('click');
-            } else if (elapsedTime > timeoutMs) {
-                clearInterval(checkInterval);
-                console.warn(`[${extensionName}] Timed out waiting for AI to generate text after ${timeoutMs / 1000} seconds.`);
-            }
-        }, 1000);
 
     } catch (error) {
-        console.error(`[${extensionName}] Failed to send impersonated message:`, error);
+        console.error(`[${extensionName}] Failed to get or send impersonated message:`, error);
     }
 }
 
@@ -354,7 +324,8 @@ function startTimer() {
     
     timerStartTime = performance.now();
 
-    timerInterval = setInterval(() => {
+    // UPDATED: Make the interval callback async
+    timerInterval = setInterval(async () => {
         const elapsedTime = (performance.now() - timerStartTime) / 1000;
         currentCountdown = Math.max(0, Math.ceil(lastCountdownDuration - elapsedTime));
 
@@ -366,7 +337,8 @@ function startTimer() {
             const useImpersonation = extension_settings[extensionName].useImpersonation;
 
             if (useImpersonation) {
-                sendImpersonatedMessage();
+                // Await the impersonation process
+                await sendImpersonatedMessage();
             } else {
                 const template = extension_settings[extensionName].messageTemplate;
                 const processedMessage = template.replace(/{seconds}/g, lastCountdownDuration);
