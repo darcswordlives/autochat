@@ -1,8 +1,7 @@
 // Import from SillyTavern core
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { saveSettingsDebounced } from "../../../../script.js";
-// UPDATED: Import the necessary functions for direct message manipulation
-import { appendMessage, saveChat, getMessageTimeStamp } from "../../../../script.js";
+// REMOVED: The problematic import that was causing the crash
 
 // Extension name MUST match folder name
 const extensionName = "autochat";
@@ -246,23 +245,33 @@ function onImpersonationChange(event) {
     $("#autochat_message_template").prop("disabled", value);
 }
 
-// UPDATED: Function to send a message to the chat (using the proven method)
+// UPDATED: Function to send a message to the chat (with safe fallback)
 function sendMessage(message) {
     try {
-        const context = getContext();
-        const messageObject = {
-            name: context.name1,
-            is_user: true,
-            is_name: true,
-            send_date: getMessageTimeStamp(),
-            mes: message
-        };
-        
-        context.chat.push(messageObject);
-        appendMessage(messageObject);
-        saveChat();
-        
-        console.log(`[${extensionName}] Message sent to chat:`, message);
+        // First, try the direct method used by other extensions
+        if (typeof appendMessage === 'function' && typeof saveChat === 'function' && typeof getMessageTimeStamp === 'function') {
+            const context = getContext();
+            const messageObject = {
+                name: context.name1,
+                is_user: true,
+                is_name: true,
+                send_date: getMessageTimeStamp(),
+                mes: message
+            };
+            context.chat.push(messageObject);
+            appendMessage(messageObject);
+            saveChat();
+            console.log(`[${extensionName}] Message sent via direct function call:`, message);
+            return; // Success, exit the function
+        }
+
+        // Fallback to the old jQuery method if direct functions aren't available
+        console.warn(`[${extensionName}] Direct functions not available. Falling back to jQuery method.`);
+        const chatInput = $("#send_textarea");
+        chatInput.val(message);
+        $("#send_but").trigger('click');
+        console.log(`[${extensionName}] Message sent via jQuery trigger:`, message);
+
     } catch (error) {
         console.error(`[${extensionName}] Failed to send message:`, error);
     }
@@ -302,7 +311,7 @@ function sendImpersonatedMessage() {
             if (messageText && messageText.trim() !== "") {
                 clearInterval(checkInterval);
                 console.log(`[${extensionName}] AI generated text. Sending message:`, messageText);
-                // UPDATED: Use the new, reliable sendMessage function
+                // Use the new, safe sendMessage function
                 sendMessage(messageText);
             } else if (elapsedTime > timeoutMs) {
                 clearInterval(checkInterval);
