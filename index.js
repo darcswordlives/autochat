@@ -1,7 +1,6 @@
 // Import from SillyTavern core
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { saveSettingsDebounced } from "../../../../script.js";
-// REMOVED: The problematic import that was causing the crash
 
 // Extension name MUST match folder name
 const extensionName = "autochat";
@@ -245,10 +244,9 @@ function onImpersonationChange(event) {
     $("#autochat_message_template").prop("disabled", value);
 }
 
-// UPDATED: Function to send a message to the chat (with safe fallback)
+// Function to send a message to the chat (with safe fallback)
 function sendMessage(message) {
     try {
-        // First, try the direct method used by other extensions
         if (typeof appendMessage === 'function' && typeof saveChat === 'function' && typeof getMessageTimeStamp === 'function') {
             const context = getContext();
             const messageObject = {
@@ -262,10 +260,9 @@ function sendMessage(message) {
             appendMessage(messageObject);
             saveChat();
             console.log(`[${extensionName}] Message sent via direct function call:`, message);
-            return; // Success, exit the function
+            return;
         }
 
-        // Fallback to the old jQuery method if direct functions aren't available
         console.warn(`[${extensionName}] Direct functions not available. Falling back to jQuery method.`);
         const chatInput = $("#send_textarea");
         chatInput.val(message);
@@ -277,30 +274,47 @@ function sendMessage(message) {
     }
 }
 
-// UPDATED: Function to send an impersonated message
+// UPDATED: Function to send an impersonated message (with extensive debugging)
 function sendImpersonatedMessage() {
     try {
         if (document.hidden) {
             console.warn(`[${extensionName}] WARNING: The page is not active. Impersonation may fail or be heavily delayed. Please keep the SillyTavern tab active.`);
         }
 
-        console.log(`[${extensionName}] Attempting to trigger impersonation button click...`);
+        console.log(`[${extensionName}] [DEBUG] Starting impersonation process...`);
         const impersonateButton = document.getElementById('impersonate_button');
         const chatInput = $("#send_textarea");
 
+        // DEBUG: Check if elements exist
         if (!impersonateButton) {
-            console.error(`[${extensionName}] Could not find the impersonate button (#impersonate_button).`);
+            console.error(`[${extensionName}] [DEBUG] FAILURE: Could not find the impersonate button with ID 'impersonate_button'.`);
+            console.log(`[${extensionName}] [DEBUG] Available buttons with 'impersonate' in their ID/class:`, $('[id*="impersonate"], [class*="impersonate"]'));
             return;
         }
+        console.log(`[${extensionName}] [DEBUG] SUCCESS: Found impersonate button.`, impersonateButton);
         if (chatInput.length === 0) {
-            console.error(`[${extensionName}] Could not find the chat input.`);
+            console.error(`[${extensionName}] [DEBUG] FAILURE: Could not find the chat input textarea.`);
             return;
         }
+        console.log(`[${extensionName}] [DEBUG] SUCCESS: Found chat input.`, chatInput[0]);
 
+        // Clear any existing text
         chatInput.val("");
-        impersonateButton.click();
-        console.log(`[${extensionName}] Impersonation button clicked.`);
+        console.log(`[${extensionName}] [DEBUG] Cleared chat input. Current value:`, chatInput.val());
 
+        // Method 1: Try calling the global function directly
+        if (typeof doImpersonation === 'function') {
+            console.log(`[${extensionName}] [DEBUG] Attempting to call global doImpersonation() function...`);
+            doImpersonation();
+            console.log(`[${extensionName}] [DEBUG] doImpersonation() function called.`);
+        } else {
+            console.warn(`[${extensionName}] [DEBUG] doImpersonation() function not found. Will try button click.`);
+            // Method 2: Fallback to clicking the button
+            impersonateButton.click();
+            console.log(`[${extensionName}] [DEBUG] Attempted native .click() on the button.`);
+        }
+
+        // Polling logic
         const timeoutMs = 30000;
         const startTime = Date.now();
         
@@ -308,10 +322,12 @@ function sendImpersonatedMessage() {
             const elapsedTime = Date.now() - startTime;
             const messageText = chatInput.val();
 
+            // DEBUG: Log polling attempts
+            console.log(`[${extensionName}] [DEBUG] Polling... Elapsed: ${Math.round(elapsedTime/1000)}s, Text found: ${messageText ? 'Yes' : 'No'}`);
+
             if (messageText && messageText.trim() !== "") {
                 clearInterval(checkInterval);
                 console.log(`[${extensionName}] AI generated text. Sending message:`, messageText);
-                // Use the new, safe sendMessage function
                 sendMessage(messageText);
             } else if (elapsedTime > timeoutMs) {
                 clearInterval(checkInterval);
