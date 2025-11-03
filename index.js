@@ -173,7 +173,7 @@ function onStartupTimeChange(event) {
 
 // Event handler for message template textarea
 function onMessageTemplateChange(event) {
-    const value = $(event.target).val());
+    const value = $(event.target).val();
     extension_settings[extensionName].messageTemplate = value;
     saveSettingsDebounced();
     console.log(`[${extensionName}] Message template saved.`);
@@ -314,9 +314,9 @@ function sendImpersonatedMessage() {
                     const events = [
                         new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Enter', code: 'Enter' }),
                         new KeyboardEvent('keyup', { bubbles: true, cancelable: true, key: 'Enter', code: 'Enter' }),
-                        new MouseEvent('mousedown', { bubbles: true, cancelable: true }),
-                        new MouseEvent('mouseup', { bubbles: true, cancelable: true }),
-                        new MouseEvent('click', { bubbles: true, cancelable: true }),
+                        new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }),
+                        new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }),
+                        new MouseEvent('click', { bubbles: true, cancelable: true, view: window }),
                     ];
                     events.forEach(event => sendButton.dispatchEvent(event));
                     console.log(`[${extensionName}] [DEBUG] Dispatched multiple events on send button.`);
