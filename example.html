@@ -14,7 +14,6 @@
             <div class="autochat-time-settings">
                 <label for="autochat_startup_time">First Run Timer (seconds):</label>
                 <input id="autochat_startup_time" type="number" min="1" max="3600" value="120" />
-                <!-- UPDATED: Description now mentions the throttle safety -->
                 <small>This timer is used only for the first run. Also respects the 120s minimum if throttle safety is enabled.</small>
             </div>
             <div class="autochat-time-settings">
@@ -33,6 +32,12 @@
                 <input id="autochat_throttle_safety" type="checkbox" />
                 <label for="autochat_throttle_safety">Enforce Minimum Time of 120s</label>
                 <small>When checked, prevents all timer minimums from being set below 120 seconds.</small>
+            </div>
+            <!-- NEW: Impersonation Checkbox -->
+            <div>
+                <input id="autochat_use_impersonation" type="checkbox" />
+                <label for="autochat_use_impersonation">Use Impersonation</label>
+                <small>When checked, sends an impersonated message instead of using the user template below.</small>
             </div>
             <div class="autochat-timer-display">
                 <span id="autochat_timer_display">Timer: Stopped</span>
