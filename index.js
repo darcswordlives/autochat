@@ -1,6 +1,8 @@
 // Import from SillyTavern core
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { saveSettingsDebounced } from "../../../../script.js";
+// UPDATED: Import the necessary functions for direct message manipulation
+import { appendMessage, saveChat, getMessageTimeStamp } from "../../../../script.js";
 
 // Extension name MUST match folder name
 const extensionName = "autochat";
@@ -244,12 +246,22 @@ function onImpersonationChange(event) {
     $("#autochat_message_template").prop("disabled", value);
 }
 
-// Simplified function to send a message to the chat
+// UPDATED: Function to send a message to the chat (using the proven method)
 function sendMessage(message) {
     try {
-        const chatInput = $("#send_textarea");
-        chatInput.val(message);
-        $("#send_but").trigger('click');
+        const context = getContext();
+        const messageObject = {
+            name: context.name1,
+            is_user: true,
+            is_name: true,
+            send_date: getMessageTimeStamp(),
+            mes: message
+        };
+        
+        context.chat.push(messageObject);
+        appendMessage(messageObject);
+        saveChat();
+        
         console.log(`[${extensionName}] Message sent to chat:`, message);
     } catch (error) {
         console.error(`[${extensionName}] Failed to send message:`, error);
@@ -259,7 +271,6 @@ function sendMessage(message) {
 // UPDATED: Function to send an impersonated message
 function sendImpersonatedMessage() {
     try {
-        // NEW: Check if the page is visible
         if (document.hidden) {
             console.warn(`[${extensionName}] WARNING: The page is not active. Impersonation may fail or be heavily delayed. Please keep the SillyTavern tab active.`);
         }
@@ -267,14 +278,13 @@ function sendImpersonatedMessage() {
         console.log(`[${extensionName}] Attempting to trigger impersonation button click...`);
         const impersonateButton = document.getElementById('impersonate_button');
         const chatInput = $("#send_textarea");
-        const sendButton = $("#send_but");
 
         if (!impersonateButton) {
             console.error(`[${extensionName}] Could not find the impersonate button (#impersonate_button).`);
             return;
         }
-        if (chatInput.length === 0 || sendButton.length === 0) {
-            console.error(`[${extensionName}] Could not find the chat input or send button.`);
+        if (chatInput.length === 0) {
+            console.error(`[${extensionName}] Could not find the chat input.`);
             return;
         }
 
@@ -292,7 +302,8 @@ function sendImpersonatedMessage() {
             if (messageText && messageText.trim() !== "") {
                 clearInterval(checkInterval);
                 console.log(`[${extensionName}] AI generated text. Sending message:`, messageText);
-                sendButton.trigger('click');
+                // UPDATED: Use the new, reliable sendMessage function
+                sendMessage(messageText);
             } else if (elapsedTime > timeoutMs) {
                 clearInterval(checkInterval);
                 console.warn(`[${extensionName}] Timed out waiting for AI to generate text after ${timeoutMs / 1000} seconds.`);
