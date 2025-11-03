@@ -274,7 +274,7 @@ function sendMessage(message) {
     }
 }
 
-// UPDATED: Function to send an impersonated message (with extensive debugging)
+// UPDATED: Function to send an impersonated message (with correct button ID)
 function sendImpersonatedMessage() {
     try {
         if (document.hidden) {
@@ -282,13 +282,12 @@ function sendImpersonatedMessage() {
         }
 
         console.log(`[${extensionName}] [DEBUG] Starting impersonation process...`);
-        const impersonateButton = document.getElementById('impersonate_button');
+        // UPDATED: Use the correct ID for the impersonation button
+        const impersonateButton = document.getElementById('mes_impersonate');
         const chatInput = $("#send_textarea");
 
-        // DEBUG: Check if elements exist
         if (!impersonateButton) {
-            console.error(`[${extensionName}] [DEBUG] FAILURE: Could not find the impersonate button with ID 'impersonate_button'.`);
-            console.log(`[${extensionName}] [DEBUG] Available buttons with 'impersonate' in their ID/class:`, $('[id*="impersonate"], [class*="impersonate"]'));
+            console.error(`[${extensionName}] [DEBUG] FAILURE: Could not find the impersonate button with ID 'mes_impersonate'.`);
             return;
         }
         console.log(`[${extensionName}] [DEBUG] SUCCESS: Found impersonate button.`, impersonateButton);
@@ -298,7 +297,6 @@ function sendImpersonatedMessage() {
         }
         console.log(`[${extensionName}] [DEBUG] SUCCESS: Found chat input.`, chatInput[0]);
 
-        // Clear any existing text
         chatInput.val("");
         console.log(`[${extensionName}] [DEBUG] Cleared chat input. Current value:`, chatInput.val());
 
@@ -314,7 +312,6 @@ function sendImpersonatedMessage() {
             console.log(`[${extensionName}] [DEBUG] Attempted native .click() on the button.`);
         }
 
-        // Polling logic
         const timeoutMs = 30000;
         const startTime = Date.now();
         
@@ -322,7 +319,6 @@ function sendImpersonatedMessage() {
             const elapsedTime = Date.now() - startTime;
             const messageText = chatInput.val();
 
-            // DEBUG: Log polling attempts
             console.log(`[${extensionName}] [DEBUG] Polling... Elapsed: ${Math.round(elapsedTime/1000)}s, Text found: ${messageText ? 'Yes' : 'No'}`);
 
             if (messageText && messageText.trim() !== "") {
